@@ -1,0 +1,30 @@
+# Environment files & secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Databases & logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Uploads & temporary artifacts
+backend/uploads/*
+!backend/uploads/.gitkeep
+scratch/
