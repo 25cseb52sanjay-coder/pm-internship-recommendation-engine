@@ -147,7 +147,7 @@ const mapBackendSkills = (skills: any[]) => {
   });
 };
 
-export const ENGINEERING_OPTIONS = [
+const ENGINEERING_OPTIONS = [
   { label: "Computer Science and Engineering", code: "COMPUTER_SCIENCE" },
   { label: "Information Technology", code: "INFORMATION_TECHNOLOGY" },
   { label: "Artificial Intelligence and Machine Learning", code: "ARTIFICIAL_INTELLIGENCE" },
@@ -204,7 +204,7 @@ export const ENGINEERING_OPTIONS = [
   { label: "Other Engineering Discipline", code: "OTHER_ENGINEERING" }
 ];
 
-export const LEGACY_MAP: Record<string, string> = {
+const LEGACY_MAP: Record<string, string> = {
   "cse": "COMPUTER_SCIENCE",
   "CSE": "COMPUTER_SCIENCE",
   "computer science engineering": "COMPUTER_SCIENCE",
@@ -231,7 +231,7 @@ export const LEGACY_MAP: Record<string, string> = {
   "ds": "DATA_SCIENCE",
 };
 
-export const normalizeStoredBranch = (storedVal: string | null | undefined): string => {
+ const normalizeStoredBranch = (storedVal: string | null | undefined): string => {
   if (!storedVal) return "";
   const val = storedVal.trim();
   if (ENGINEERING_OPTIONS.some(opt => opt.code === val)) {
@@ -287,13 +287,13 @@ export const normalizeStoredBranch = (storedVal: string | null | undefined): str
   return "OTHER_ENGINEERING";
 };
 
-export const getBranchLabel = (code: string | null | undefined): string => {
+ const getBranchLabel = (code: string | null | undefined): string => {
   if (!code) return "";
   const opt = ENGINEERING_OPTIONS.find(o => o.code === code);
   return opt ? opt.label : code;
 };
 
-export const matchAbbreviation = (label: string, searchVal: string): boolean => {
+ const matchAbbreviation = (label: string, searchVal: string): boolean => {
   const searchLower = searchVal.toLowerCase().trim();
   if (!searchLower) return true;
   if (label.toLowerCase().includes(searchLower)) return true;

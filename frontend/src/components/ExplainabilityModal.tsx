@@ -25,6 +25,8 @@ interface ExplainabilityModalProps {
       internship_preference: number;
     };
     reasons: string[];
+     evidence_used?: any[];
+     confidence?: string;
   };
 }
 
