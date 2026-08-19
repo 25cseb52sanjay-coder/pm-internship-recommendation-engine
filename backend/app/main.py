@@ -113,6 +113,17 @@ async def startup_event():
             except Exception:
                 pass
 
+        # Expand internship title for real Greenhouse/Adzuna listings
+        try:
+            await conn.execute(
+                text(
+                    "ALTER TABLE internships "
+                    "ALTER COLUMN title TYPE VARCHAR(255)"
+                )
+            )
+        except Exception:
+            pass
+
         # Schema migration check for source_registry table
         for col_def in [
             "api_endpoint VARCHAR(500)",
