@@ -124,6 +124,17 @@ async def startup_event():
         except Exception:
             pass
 
+
+        try:
+            await conn.execute(
+               text(
+                   "ALTER TABLE internships "
+                   "ALTER COLUMN description TYPE TEXT"
+                )
+            )
+        except Exception:
+            pass
+
         # Schema migration check for source_registry table
         for col_def in [
             "api_endpoint VARCHAR(500)",
