@@ -10,6 +10,7 @@ from app.db.database import engine, Base
 from app.api.v1 import auth, students, internships, admin, ingestion, rules, users
 from app.core.middleware import RateLimitMiddleware
 from app.seed import seed_database_data
+from app.services.sync_service import OpportunitySyncService
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -137,6 +138,10 @@ async def startup_event():
     # Auto-seed database if empty
     await seed_database_data()
 
+
+    OpportunitySyncService.start_scheduler()
+    
+
 @app.get("/health", tags=["Observability"])
 async def health_check():
     """Liveness probe endpoint (Google Antigravity Spec Specification)."""
@@ -184,6 +189,13 @@ async def root():
         "health": "/health",
         "ready": "/ready"
     }
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    OpportunitySyncService.stop_scheduler()
+
+
 
 if __name__ == "__main__":
     import uvicorn

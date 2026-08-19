@@ -98,9 +98,9 @@ class OpportunitySyncService:
         
         while OpportunitySyncService._is_running:
             try:
-                await asyncio.sleep(interval)
                 if OpportunitySyncService._is_running:
                     await OpportunitySyncService.run_full_sync()
+                await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 logger.info("OpportunitySyncService background scheduler loop cancelled.")
                 break
