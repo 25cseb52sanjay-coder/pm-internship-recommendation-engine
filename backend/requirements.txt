@@ -25,3 +25,4 @@ asyncpg
 google-auth
 requests
 email-validator
+Pillow
