@@ -71,22 +71,31 @@ class GreenhouseSyncService:
                     is_remote = "remote" in (job.location or "").lower()
                     work_mode = "Remote" if is_remote else "On-site"
 
+                    # Truncate fields defensively to match their maximum column sizes
+                    # This prevents StringDataRightTruncationError for edge-case long values.
+                    safe_title = (job.title or "")[:255]
+                    safe_location = (job.location or "Multiple Locations / Remote")[:255]
+                    safe_sector = "Technology & Corporate Services"[:255]
+                    safe_stipend = ("Competitive Market Compensation" if job.opportunity_type == "JOB" else "Industry Stipend")[:255]
+                    safe_emp_type = (getattr(job, "employment_type", None) or "")[:255] or None
+                    safe_dept = (getattr(job, "department", None) or "")[:255] or None
+
                     new_record = Internship(
                         company_name=job.company,
-                        company_sector="Technology & Corporate Services",
-                        title=job.title,
-                        description=job.description or f"{job.title} opportunity at {job.company}.",
-                        location=job.location or "Multiple Locations / Remote",
+                        company_sector=safe_sector,
+                        title=safe_title,
+                        description=job.description or f"{safe_title} opportunity at {job.company}.",
+                        location=safe_location,
                         work_mode=work_mode,
                         duration="Full-Time" if job.opportunity_type == "JOB" else "6 Months",
-                        stipend="Competitive Market Compensation" if job.opportunity_type == "JOB" else "Industry Stipend",
-                        deadline="2026-12-31", # Standard open requisition window
+                        stipend=safe_stipend,
+                        deadline="2026-12-31",
                         positions=1,
                         min_qualification="Graduate",
                         source="Greenhouse",
                         external_id=ext_id,
-                        department=getattr(job, "department", None),
-                        employment_type=getattr(job, "employment_type", None),
+                        department=safe_dept,
+                        employment_type=safe_emp_type,
                         opportunity_type=job.opportunity_type or "INTERNSHIP",
                         source_url=job.source_url if OpportunityQualityService.validate_application_url(job.source_url)[0] else "APPLICATION_URL_UNAVAILABLE",
                         apply_url=job.apply_url if OpportunityQualityService.validate_application_url(job.apply_url)[0] else "APPLICATION_URL_UNAVAILABLE",
@@ -101,13 +110,22 @@ class GreenhouseSyncService:
                         last_checked_at=now
                     )
                     db.add(new_record)
-                    created_count += 1
+                    # Flush and commit each new record individually so a DB error on one
+                    # record does not abort the session and lose all other records.
+                    try:
+                        await db.flush()
+                        await db.commit()
+                        created_count += 1
+                    except Exception as flush_err:
+                        await db.rollback()
+                        failed_count += 1
+                        logger.error(f"Failed to persist Greenhouse job ID {ext_id} ({safe_title[:60]}): {flush_err}")
                 else:
                     # 4. Existing record: check for field updates
                     has_changes = False
 
                     if job.title and existing.title != job.title:
-                        existing.title = job.title
+                        existing.title = job.title[:255]
                         has_changes = True
 
                     if job.description and existing.description != job.description:
@@ -115,7 +133,7 @@ class GreenhouseSyncService:
                         has_changes = True
 
                     if job.location and existing.location != job.location:
-                        existing.location = job.location
+                        existing.location = job.location[:255]
                         has_changes = True
 
                     if job.apply_url and OpportunityQualityService.validate_application_url(job.apply_url)[0] and existing.apply_url != job.apply_url:
@@ -128,12 +146,12 @@ class GreenhouseSyncService:
 
                     dept = getattr(job, "department", None)
                     if dept and existing.department != dept:
-                        existing.department = dept
+                        existing.department = (dept or "")[:255] or None
                         has_changes = True
 
                     emp_type = getattr(job, "employment_type", None)
                     if emp_type and existing.employment_type != emp_type:
-                        existing.employment_type = emp_type
+                        existing.employment_type = (emp_type or "")[:255] or None
                         has_changes = True
 
                     # Update timestamps
@@ -150,7 +168,12 @@ class GreenhouseSyncService:
                 failed_count += 1
                 logger.error(f"Error persisting Greenhouse job ID {job.external_id}: {str(e)}")
 
-        await db.commit()
+        # Final commit for any pending updates (existing record timestamp updates etc.)
+        try:
+            await db.commit()
+        except Exception as commit_err:
+            await db.rollback()
+            logger.error(f"Final batch commit error: {commit_err}")
 
         summary = {
             "status": "SUCCESS" if failed_count == 0 else "PARTIAL_SUCCESS",
