@@ -57,111 +57,162 @@ app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["U
 
 @app.on_event("startup")
 async def startup_event():
-    # Initialize DB tables
+    # Step 1: Create all tables that do not yet exist
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-        # Schema migration check for users table
-        for col in ["provider VARCHAR(50) DEFAULT 'LOCAL'", "google_subject_id VARCHAR(255)", "avatar_url VARCHAR(500)", "preferred_locale VARCHAR(10) DEFAULT 'en'"]:
-            try:
-                await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col}"))
-            except Exception:
-                pass
 
-        # Schema migration check for student_profiles table (Task 27A)
-        for col_def in [
-            "academic_level VARCHAR(100)",
-            "primary_discipline VARCHAR(255)",
-            "normalized_discipline VARCHAR(100)",
-            "specialization VARCHAR(255)",
-            "sub_specialization VARCHAR(255)",
-            "secondary_discipline VARCHAR(255)",
-            "minor_discipline VARCHAR(255)"
-        ]:
-            try:
-                await conn.execute(text(f"ALTER TABLE student_profiles ADD COLUMN {col_def}"))
-            except Exception:
-                pass
+    # Step 2: ADD COLUMN migrations — each in its own isolated connection/transaction
+    # This prevents a single failed ADD COLUMN (column already exists) from aborting
+    # subsequent migrations in PostgreSQL, which is the root cause of the schema mismatch.
+    await _run_add_column_migrations()
 
-        # Schema migration check for internships table
-        for col_def in [
-            "source_id INTEGER",
-            "source_url VARCHAR(500)",
-            "duplicate_fingerprint VARCHAR(255)",
-            "fingerprint_sha256 VARCHAR(255)",
-            "status VARCHAR(50) DEFAULT 'VERIFIED_LIVE'",
-            "verification_status VARCHAR(50) DEFAULT 'VERIFIED'",
-            "quality_score FLOAT DEFAULT 80.0",
-            "required_education VARCHAR(100) DEFAULT 'Graduate'",
-            "first_seen_at DATETIME",
-            "last_seen_at DATETIME",
-            "last_verified_at DATETIME",
-            "posted_date DATETIME",
-            "last_checked_at DATETIME",
-            "is_demo BOOLEAN DEFAULT 0",
-            "max_age INTEGER DEFAULT 24",
-            "required_disciplines_json TEXT",
-            "accepted_disciplines_json TEXT",
-            "related_disciplines_json TEXT",
-            "discipline_scope VARCHAR(50) DEFAULT 'UNKNOWN'",
-            "specializations_json TEXT",
-            "discipline_confidence FLOAT DEFAULT 1.0",
-            "original_requirement_text TEXT"
-        ]:
-            try:
-                await conn.execute(text(f"ALTER TABLE internships ADD COLUMN {col_def}"))
-            except Exception:
-                pass
+    # Step 3: Expand column types that may be too narrow in production PostgreSQL
+    # Runs in a dedicated autocommit isolation so it cannot be blocked by Step 2 failures.
+    await _run_column_type_migrations()
 
-        # Expand internship title for real Greenhouse/Adzuna listings
-        try:
-            await conn.execute(
-                text(
-                    "ALTER TABLE internships "
-                    "ALTER COLUMN title TYPE VARCHAR(255)"
-                )
-            )
-        except Exception:
-            pass
-
-
-        try:
-            await conn.execute(
-               text(
-                   "ALTER TABLE internships "
-                   "ALTER COLUMN description TYPE TEXT"
-                )
-            )
-        except Exception:
-            pass
-
-        # Schema migration check for source_registry table
-        for col_def in [
-            "api_endpoint VARCHAR(500)",
-            "authentication_method VARCHAR(50) DEFAULT 'NONE'",
-            "authorization_status VARCHAR(50) DEFAULT 'AUTHORIZED'",
-            "enabled BOOLEAN DEFAULT 1",
-            "polling_frequency_seconds INTEGER DEFAULT 900",
-            "rate_limit INTEGER DEFAULT 60",
-            "priority INTEGER DEFAULT 1",
-            "last_success_at DATETIME",
-            "last_failure_at DATETIME",
-            "last_run_at DATETIME",
-            "next_run_at DATETIME",
-            "health_status VARCHAR(50) DEFAULT 'ONLINE'",
-            "source_confidence FLOAT DEFAULT 1.0",
-            "updated_at DATETIME"
-        ]:
-            try:
-                await conn.execute(text(f"ALTER TABLE source_registry ADD COLUMN {col_def}"))
-            except Exception:
-                pass
-
-    # Auto-seed database if empty
+    # Step 4: Auto-seed database if empty
     await seed_database_data()
 
-
+    # Step 5: Start background opportunity sync scheduler (Greenhouse + Adzuna)
     OpportunitySyncService.start_scheduler()
+
+
+async def _run_add_column_migrations():
+    """
+    Runs all ADD COLUMN migrations with each statement in its own isolated connection.
+    On PostgreSQL: a failed ADD COLUMN (column already exists) aborts the transaction,
+    but since each statement gets its own connection, subsequent migrations still execute.
+    On SQLite: uses the same approach (each statement isolated), which is also safe.
+    """
+    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
+
+    all_migrations = [
+        # users table
+        ("users", "provider VARCHAR(50) DEFAULT 'LOCAL'"),
+        ("users", "google_subject_id VARCHAR(255)"),
+        ("users", "avatar_url VARCHAR(500)"),
+        ("users", "preferred_locale VARCHAR(10) DEFAULT 'en'"),
+        # student_profiles table (Task 27A)
+        ("student_profiles", "academic_level VARCHAR(100)"),
+        ("student_profiles", "primary_discipline VARCHAR(255)"),
+        ("student_profiles", "normalized_discipline VARCHAR(100)"),
+        ("student_profiles", "specialization VARCHAR(255)"),
+        ("student_profiles", "sub_specialization VARCHAR(255)"),
+        ("student_profiles", "secondary_discipline VARCHAR(255)"),
+        ("student_profiles", "minor_discipline VARCHAR(255)"),
+        # internships table
+        ("internships", "source_id INTEGER"),
+        ("internships", "source_url VARCHAR(500)"),
+        ("internships", "duplicate_fingerprint VARCHAR(255)"),
+        ("internships", "fingerprint_sha256 VARCHAR(255)"),
+        ("internships", "status VARCHAR(50) DEFAULT 'VERIFIED_LIVE'"),
+        ("internships", "verification_status VARCHAR(50) DEFAULT 'VERIFIED'"),
+        ("internships", "quality_score FLOAT DEFAULT 80.0"),
+        ("internships", "required_education VARCHAR(100) DEFAULT 'Graduate'"),
+        ("internships", "first_seen_at DATETIME"),
+        ("internships", "last_seen_at DATETIME"),
+        ("internships", "last_verified_at DATETIME"),
+        ("internships", "posted_date DATETIME"),
+        ("internships", "last_checked_at DATETIME"),
+        ("internships", "is_demo BOOLEAN DEFAULT 0"),
+        ("internships", "max_age INTEGER DEFAULT 24"),
+        ("internships", "required_disciplines_json TEXT"),
+        ("internships", "accepted_disciplines_json TEXT"),
+        ("internships", "related_disciplines_json TEXT"),
+        ("internships", "discipline_scope VARCHAR(50) DEFAULT 'UNKNOWN'"),
+        ("internships", "specializations_json TEXT"),
+        ("internships", "discipline_confidence FLOAT DEFAULT 1.0"),
+        ("internships", "original_requirement_text TEXT"),
+        # source_registry table
+        ("source_registry", "api_endpoint VARCHAR(500)"),
+        ("source_registry", "authentication_method VARCHAR(50) DEFAULT 'NONE'"),
+        ("source_registry", "authorization_status VARCHAR(50) DEFAULT 'AUTHORIZED'"),
+        ("source_registry", "enabled BOOLEAN DEFAULT 1"),
+        ("source_registry", "polling_frequency_seconds INTEGER DEFAULT 900"),
+        ("source_registry", "rate_limit INTEGER DEFAULT 60"),
+        ("source_registry", "priority INTEGER DEFAULT 1"),
+        ("source_registry", "last_success_at DATETIME"),
+        ("source_registry", "last_failure_at DATETIME"),
+        ("source_registry", "last_run_at DATETIME"),
+        ("source_registry", "next_run_at DATETIME"),
+        ("source_registry", "health_status VARCHAR(50) DEFAULT 'ONLINE'"),
+        ("source_registry", "source_confidence FLOAT DEFAULT 1.0"),
+        ("source_registry", "updated_at DATETIME"),
+    ]
+
+    for table, col_def in all_migrations:
+        try:
+            if is_postgres:
+                # Use a raw connection in AUTOCOMMIT mode so each statement is fully isolated.
+                # A failure here (column already exists) does NOT affect any other statement.
+                raw_conn = await engine.raw_connection()
+                try:
+                    await raw_conn.set_autocommit(True)
+                    await raw_conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_def}")
+                except Exception:
+                    pass  # Expected: column already exists or type conflict
+                finally:
+                    await raw_conn.close()
+            else:
+                # SQLite: use a normal connection (SQLite does not support IF NOT EXISTS on columns)
+                async with engine.begin() as conn:
+                    try:
+                        await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_def}"))
+                    except Exception:
+                        pass  # Expected: column already exists
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"ADD COLUMN migration skipped ({table}.{col_def[:30]}): {e}")
+
+
+async def _run_column_type_migrations():
+    """
+    Expands column types that are too narrow for real Greenhouse/Adzuna data.
+    Each ALTER COLUMN runs in full isolation so that prior failures cannot block this.
+    Only applies to PostgreSQL — SQLite column types are advisory only.
+
+    Columns that have proven too narrow in production (VARCHAR(100) receiving 4000+ char data):
+      - internships.title        → VARCHAR(255)
+      - internships.description  → TEXT
+      - internships.location     → VARCHAR(255)
+      - internships.stipend      → VARCHAR(255)
+      - internships.company_sector → VARCHAR(255)
+      - internships.employment_type → VARCHAR(255)
+    """
+    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
+    if not is_postgres:
+        return  # SQLite column types are advisory, no action needed
+
+    import logging
+    logger = logging.getLogger(__name__)
+
+    type_migrations = [
+        ("internships", "title", "VARCHAR(255)"),
+        ("internships", "description", "TEXT"),
+        ("internships", "location", "VARCHAR(255)"),
+        ("internships", "stipend", "VARCHAR(255)"),
+        ("internships", "company_sector", "VARCHAR(255)"),
+        ("internships", "employment_type", "VARCHAR(255)"),
+    ]
+
+    for table, column, new_type in type_migrations:
+        try:
+            raw_conn = await engine.raw_connection()
+            try:
+                await raw_conn.set_autocommit(True)
+                sql = f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::{new_type}"
+                await raw_conn.execute(sql)
+                logger.info(f"Schema migration applied: {table}.{column} → {new_type}")
+            except Exception as e:
+                err_str = str(e).lower()
+                if "already" in err_str or "no changes" in err_str or "does not exist" in err_str:
+                    pass  # Column already correct type or doesn't exist yet
+                else:
+                    logger.warning(f"Column type migration {table}.{column} → {new_type}: {e}")
+            finally:
+                await raw_conn.close()
+        except Exception as e:
+            logger.error(f"CRITICAL: Could not acquire connection for column type migration {table}.{column}: {e}")
     
 
 @app.get("/health", tags=["Observability"])
