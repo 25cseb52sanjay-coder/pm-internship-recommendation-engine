@@ -107,7 +107,7 @@ class Internship(Base):
     company_sector = Column(String(100), nullable=False) # Public Sector, Automotive, IT Services, Government, etc.
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
-    location = Column(String(100), nullable=False)
+    location = Column(String(255), nullable=False)
     work_mode = Column(String(50), default="On-site") # On-site, Remote, Hybrid
     duration = Column(String(50), nullable=False)    # e.g., 3 Months, 6 Months, 12 Months
     stipend = Column(String(100), nullable=False)     # e.g., ₹12,000 / month (PM Scheme standard ₹5,000 + company top-up)

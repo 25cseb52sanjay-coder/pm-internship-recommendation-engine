@@ -230,12 +230,7 @@ async def _run_column_type_migrations():
     logger = logging.getLogger(__name__)
 
     type_migrations = [
-        ("internships", "title", "VARCHAR(255)"),
-        ("internships", "description", "TEXT"),
         ("internships", "location", "VARCHAR(255)"),
-        ("internships", "stipend", "VARCHAR(255)"),
-        ("internships", "company_sector", "VARCHAR(255)"),
-        ("internships", "employment_type", "VARCHAR(255)"),
     ]
 
     for table, column, new_type in type_migrations:
