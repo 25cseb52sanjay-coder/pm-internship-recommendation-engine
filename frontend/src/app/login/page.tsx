@@ -22,8 +22,21 @@ export default function LoginPage() {
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "609018289565-qltf0pmrvl7hi1tbu6k445ikb6p3q4ea.apps.googleusercontent.com";
 
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
-      initGoogleAuth();
+    const checkAndInit = () => {
+      if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
+        initGoogleAuth();
+        return true;
+      }
+      return false;
+    };
+
+    if (!checkAndInit()) {
+      const interval = setInterval(() => {
+        if (checkAndInit()) {
+          clearInterval(interval);
+        }
+      }, 200);
+      return () => clearInterval(interval);
     }
   }, []);
 
@@ -131,11 +144,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-10">
       
-      {/* Official Google Identity Services Script */}
       <Script
         src="https://accounts.google.com/gsi/client"
         onLoad={initGoogleAuth}
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
 
       <div className="w-full max-w-md bg-white border border-slate-300 rounded p-8 shadow-sm space-y-6">
