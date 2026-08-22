@@ -6,11 +6,18 @@ if (isProduction && (!rawApiUrl || rawApiUrl.includes("127.0.0.1") || rawApiUrl.
 }
 
 export function getApiBaseUrl(): string {
-  if (rawApiUrl) return rawApiUrl;
-  if (typeof window !== "undefined" && window.location.hostname) {
-    return `http://${window.location.hostname}:8000/api/v1`;
+  if (rawApiUrl && !rawApiUrl.includes("127.0.0.1") && !rawApiUrl.includes("localhost")) {
+    return rawApiUrl.replace(/\/$/, "");
   }
-  return "http://127.0.0.1:8000/api/v1";
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://127.0.0.1:8000/api/v1";
+    }
+  }
+
+  return "https://pm-internship-recommendation-engine-tqaf.onrender.com/api/v1";
 }
 
 export function getAuthToken(): string | null {
