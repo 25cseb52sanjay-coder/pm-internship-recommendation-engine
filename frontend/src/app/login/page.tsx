@@ -43,7 +43,7 @@ export default function LoginPage() {
         (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
           theme: "outline",
           size: "large",
-          text: "continue_with",
+          text: "signin_with",
           shape: "rectangular",
           logo_alignment: "left",
           width: "320",
