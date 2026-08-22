@@ -84,29 +84,21 @@ async def _log_internships_schema_diagnostic():
     """
     import logging
     logger = logging.getLogger("uvicorn.error")
-    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
 
     logger.info("=== TEMPORARY DIAGNOSTIC: INSPECTING PRODUCTION INTERNSHIPS SCHEMA ===")
     try:
         async with engine.connect() as conn:
-            if is_postgres:
-                res = await conn.execute(text(
-                    "SELECT column_name, data_type, character_maximum_length "
-                    "FROM information_schema.columns "
-                    "WHERE table_name = 'internships' "
-                    "ORDER BY ordinal_position;"
-                ))
-                rows = res.fetchall()
-                for row in rows:
-                    col_name = row[0]
-                    data_type = row[1]
-                    max_len = row[2]
-                    logger.info(f"[DIAGNOSTIC SCHEMA] Column: {col_name:<30} | Type: {data_type:<20} | MaxLength: {max_len}")
-            else:
-                res = await conn.execute(text("PRAGMA table_info(internships);"))
-                rows = res.fetchall()
-                for row in rows:
-                    logger.info(f"[DIAGNOSTIC SQLITE] Column: {row[1]:<30} | Type: {row[2]:<20}")
+            res = await conn.execute(text(
+                "SELECT column_name, data_type, character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_name = 'internships' "
+                "ORDER BY ordinal_position;"
+            ))
+            for row in res:
+                col_name = str(row[0])
+                data_type = str(row[1])
+                max_len = row[2]
+                logger.info(f"[DIAGNOSTIC SCHEMA] Column: {col_name:<30} | Type: {data_type:<20} | MaxLength: {max_len}")
     except Exception as e:
         logger.error(f"[DIAGNOSTIC SCHEMA ERROR] Failed to query internships table schema: {e}")
     logger.info("=== END TEMPORARY DIAGNOSTIC ===")
@@ -115,37 +107,26 @@ async def _log_internships_schema_diagnostic():
 @app.get("/schema-diagnostic", tags=["Observability"])
 async def schema_diagnostic():
     """TEMPORARY READ-ONLY DIAGNOSTIC: Returns production information_schema.columns for internships."""
-    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
     columns = []
     try:
         async with engine.connect() as conn:
-            if is_postgres:
-                res = await conn.execute(text(
-                    "SELECT column_name, data_type, character_maximum_length "
-                    "FROM information_schema.columns "
-                    "WHERE table_name = 'internships' "
-                    "ORDER BY ordinal_position;"
-                ))
-                rows = res.fetchall()
-                for row in rows:
-                    columns.append({
-                        "column_name": row[0],
-                        "data_type": row[1],
-                        "character_maximum_length": row[2]
-                    })
-            else:
-                res = await conn.execute(text("PRAGMA table_info(internships);"))
-                rows = res.fetchall()
-                for row in rows:
-                    columns.append({
-                        "column_name": row[1],
-                        "data_type": row[2],
-                        "character_maximum_length": None
-                    })
+            res = await conn.execute(text(
+                "SELECT column_name, data_type, character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_name = 'internships' "
+                "ORDER BY ordinal_position;"
+            ))
+            for row in res:
+                columns.append({
+                    "column_name": str(row[0]),
+                    "data_type": str(row[1]),
+                    "character_maximum_length": int(row[2]) if row[2] is not None else None
+                })
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
-    return {"is_postgres": is_postgres, "columns": columns}
+    return {"columns": columns}
 
 
 async def _run_add_column_migrations():
