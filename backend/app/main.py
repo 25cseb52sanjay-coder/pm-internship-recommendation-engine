@@ -67,98 +67,13 @@ async def startup_event():
     # Step 3: Expand column types that may be too narrow in production PostgreSQL
     await _run_column_type_migrations()
 
-    # Step 3.5: TEMPORARY DIAGNOSTIC: Log internships table schema details in production
-    await _log_internships_schema_diagnostic()
-    _log_google_oauth_diagnostic()
-
     # Step 4: Auto-seed database if empty
     await seed_database_data()
 
     # Step 5: Start background opportunity sync scheduler (Greenhouse + Adzuna)
     OpportunitySyncService.start_scheduler()
 
-
-def _log_google_oauth_diagnostic():
-    import logging
-    logger = logging.getLogger("uvicorn.error")
-    raw_cid = (settings.GOOGLE_CLIENT_ID or "").strip()
-    is_valid_oauth_id = raw_cid.endswith(".apps.googleusercontent.com")
-    masked_cid = raw_cid[:12] + "..." + raw_cid[-25:] if len(raw_cid) > 37 else raw_cid
-
-    logger.info("=== GOOGLE OAUTH CONFIGURATION DIAGNOSTIC ===")
-    logger.info(f"Configured GOOGLE_CLIENT_ID: {masked_cid}")
-    if is_valid_oauth_id:
-        logger.info("Configured Google OAuth audience status: VALID (.apps.googleusercontent.com)")
-    else:
-        logger.warning(f"Configured Google OAuth audience status: INVALID (Appears to be a Google Cloud project ID: '{raw_cid}')")
-    logger.info("===============================================")
-
-
-@app.get("/google-oauth-diagnostic", tags=["Observability"])
-async def google_oauth_diagnostic():
-    """TEMPORARY READ-ONLY DIAGNOSTIC: Safe check for Google OAuth Client ID configuration."""
-    raw_cid = (settings.GOOGLE_CLIENT_ID or "").strip()
-    is_valid_oauth_id = raw_cid.endswith(".apps.googleusercontent.com")
-    masked_cid = raw_cid[:12] + "..." + raw_cid[-25:] if len(raw_cid) > 37 else raw_cid
-    return {
-        "configured_client_id_masked": masked_cid,
-        "is_valid_oauth_web_client_id": is_valid_oauth_id,
-        "expected_audience_suffix": ".apps.googleusercontent.com"
-    }
-
-
 from app.db.database import engine, Base, AsyncSessionLocal
-
-async def _log_internships_schema_diagnostic():
-    """
-    TEMPORARY DIAGNOSTIC LOGGING:
-    Queries information_schema.columns for table_name = 'internships' to inspect actual PostgreSQL column data types and character lengths in production.
-    """
-    import logging
-    logger = logging.getLogger("uvicorn.error")
-
-    logger.info("=== TEMPORARY DIAGNOSTIC: INSPECTING PRODUCTION INTERNSHIPS SCHEMA ===")
-    try:
-        async with AsyncSessionLocal() as session:
-            res = await session.execute(text(
-                "SELECT column_name, data_type, character_maximum_length "
-                "FROM information_schema.columns "
-                "WHERE table_name = 'internships' "
-                "ORDER BY ordinal_position;"
-            ))
-            for row in res.all():
-                col_name = str(row[0])
-                data_type = str(row[1])
-                max_len = row[2]
-                logger.info(f"[DIAGNOSTIC SCHEMA] Column: {col_name:<30} | Type: {data_type:<20} | MaxLength: {max_len}")
-    except Exception as e:
-        logger.error(f"[DIAGNOSTIC SCHEMA ERROR] Failed to query internships table schema: {e}")
-    logger.info("=== END TEMPORARY DIAGNOSTIC ===")
-
-
-@app.get("/schema-diagnostic", tags=["Observability"])
-async def schema_diagnostic():
-    """TEMPORARY READ-ONLY DIAGNOSTIC: Returns production information_schema.columns for internships."""
-    columns = []
-    try:
-        async with AsyncSessionLocal() as session:
-            res = await session.execute(text(
-                "SELECT column_name, data_type, character_maximum_length "
-                "FROM information_schema.columns "
-                "WHERE table_name = 'internships' "
-                "ORDER BY ordinal_position;"
-            ))
-            for row in res.all():
-                columns.append({
-                    "column_name": str(row[0]),
-                    "data_type": str(row[1]),
-                    "character_maximum_length": int(row[2]) if row[2] is not None else None
-                })
-    except Exception as e:
-        import traceback
-        return {"error": str(e), "traceback": traceback.format_exc()}
-
-    return {"columns": columns}
 
 
 async def _run_add_column_migrations():
