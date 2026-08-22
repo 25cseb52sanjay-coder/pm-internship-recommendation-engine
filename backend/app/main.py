@@ -221,25 +221,16 @@ async def _run_column_type_migrations():
     Expands column types that are too narrow for real Greenhouse/Adzuna data.
     Only applies to PostgreSQL — SQLite column types are advisory only.
     """
-    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
-    if not is_postgres:
-        return
-
     import logging
     logger = logging.getLogger("uvicorn.error")
 
     try:
-        raw_conn = await engine.raw_connection()
-        try:
-            driver_conn = raw_conn.driver_connection
-            await driver_conn.execute("ALTER TABLE internships ALTER COLUMN location TYPE VARCHAR(255);")
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("ALTER TABLE internships ALTER COLUMN location TYPE VARCHAR(255);"))
+            await session.commit()
             logger.info("Schema migration applied successfully: internships.location → VARCHAR(255)")
-        except Exception as e:
-            logger.warning(f"Column type migration internships.location → VARCHAR(255): {e}")
-        finally:
-            await raw_conn.close()
     except Exception as e:
-        logger.error(f"CRITICAL: Could not acquire connection for column type migration: {e}")
+        logger.warning(f"Column type migration internships.location → VARCHAR(255): {e}")
     
 
 @app.get("/health", tags=["Observability"])
