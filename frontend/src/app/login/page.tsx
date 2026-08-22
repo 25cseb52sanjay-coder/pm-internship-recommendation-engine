@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Script from "next/script";
@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "609018289565-qltf0pmrvl7hi1tbu6k445ikb6p3q4ea.apps.googleusercontent.com";
 
@@ -37,18 +36,6 @@ export default function LoginPage() {
         auto_select: false,
         cancel_on_tap_outside: true,
       });
-
-      if (googleBtnContainerRef.current) {
-        googleBtnContainerRef.current.innerHTML = "";
-        (window as any).google.accounts.id.renderButton(googleBtnContainerRef.current, {
-          theme: "outline",
-          size: "large",
-          text: "continue_with",
-          shape: "rectangular",
-          logo_alignment: "left",
-          width: "320",
-        });
-      }
       setScriptLoaded(true);
     } catch (err) {
       console.error("GIS initialization error:", err);
@@ -187,7 +174,6 @@ export default function LoginPage() {
                   </svg>
                   <span>Continue with Google</span>
                 </button>
-                <div ref={googleBtnContainerRef} className="hidden" />
               </div>
             )}
           </div>
