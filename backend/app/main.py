@@ -88,25 +88,21 @@ async def _log_internships_schema_diagnostic():
 
     logger.info("=== TEMPORARY DIAGNOSTIC: INSPECTING PRODUCTION INTERNSHIPS SCHEMA ===")
     try:
-        if is_postgres:
-            raw_conn = await engine.raw_connection()
-            try:
-                res = await raw_conn.execute(
+        async with engine.connect() as conn:
+            if is_postgres:
+                res = await conn.execute(text(
                     "SELECT column_name, data_type, character_maximum_length "
                     "FROM information_schema.columns "
                     "WHERE table_name = 'internships' "
                     "ORDER BY ordinal_position;"
-                )
-                rows = await res.fetchall()
+                ))
+                rows = res.fetchall()
                 for row in rows:
                     col_name = row[0]
                     data_type = row[1]
                     max_len = row[2]
                     logger.info(f"[DIAGNOSTIC SCHEMA] Column: {col_name:<30} | Type: {data_type:<20} | MaxLength: {max_len}")
-            finally:
-                await raw_conn.close()
-        else:
-            async with engine.connect() as conn:
+            else:
                 res = await conn.execute(text("PRAGMA table_info(internships);"))
                 rows = res.fetchall()
                 for row in rows:
@@ -122,26 +118,22 @@ async def schema_diagnostic():
     is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
     columns = []
     try:
-        if is_postgres:
-            raw_conn = await engine.raw_connection()
-            try:
-                res = await raw_conn.execute(
+        async with engine.connect() as conn:
+            if is_postgres:
+                res = await conn.execute(text(
                     "SELECT column_name, data_type, character_maximum_length "
                     "FROM information_schema.columns "
                     "WHERE table_name = 'internships' "
                     "ORDER BY ordinal_position;"
-                )
-                rows = await res.fetchall()
+                ))
+                rows = res.fetchall()
                 for row in rows:
                     columns.append({
                         "column_name": row[0],
                         "data_type": row[1],
                         "character_maximum_length": row[2]
                     })
-            finally:
-                await raw_conn.close()
-        else:
-            async with engine.connect() as conn:
+            else:
                 res = await conn.execute(text("PRAGMA table_info(internships);"))
                 rows = res.fetchall()
                 for row in rows:
