@@ -69,12 +69,42 @@ async def startup_event():
 
     # Step 3.5: TEMPORARY DIAGNOSTIC: Log internships table schema details in production
     await _log_internships_schema_diagnostic()
+    _log_google_oauth_diagnostic()
 
     # Step 4: Auto-seed database if empty
     await seed_database_data()
 
     # Step 5: Start background opportunity sync scheduler (Greenhouse + Adzuna)
     OpportunitySyncService.start_scheduler()
+
+
+def _log_google_oauth_diagnostic():
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    raw_cid = (settings.GOOGLE_CLIENT_ID or "").strip()
+    is_valid_oauth_id = raw_cid.endswith(".apps.googleusercontent.com")
+    masked_cid = raw_cid[:12] + "..." + raw_cid[-25:] if len(raw_cid) > 37 else raw_cid
+
+    logger.info("=== GOOGLE OAUTH CONFIGURATION DIAGNOSTIC ===")
+    logger.info(f"Configured GOOGLE_CLIENT_ID: {masked_cid}")
+    if is_valid_oauth_id:
+        logger.info("Configured Google OAuth audience status: VALID (.apps.googleusercontent.com)")
+    else:
+        logger.warning(f"Configured Google OAuth audience status: INVALID (Appears to be a Google Cloud project ID: '{raw_cid}')")
+    logger.info("===============================================")
+
+
+@app.get("/google-oauth-diagnostic", tags=["Observability"])
+async def google_oauth_diagnostic():
+    """TEMPORARY READ-ONLY DIAGNOSTIC: Safe check for Google OAuth Client ID configuration."""
+    raw_cid = (settings.GOOGLE_CLIENT_ID or "").strip()
+    is_valid_oauth_id = raw_cid.endswith(".apps.googleusercontent.com")
+    masked_cid = raw_cid[:12] + "..." + raw_cid[-25:] if len(raw_cid) > 37 else raw_cid
+    return {
+        "configured_client_id_masked": masked_cid,
+        "is_valid_oauth_web_client_id": is_valid_oauth_id,
+        "expected_audience_suffix": ".apps.googleusercontent.com"
+    }
 
 
 from app.db.database import engine, Base, AsyncSessionLocal
