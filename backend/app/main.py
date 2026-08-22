@@ -62,19 +62,58 @@ async def startup_event():
         await conn.run_sync(Base.metadata.create_all)
 
     # Step 2: ADD COLUMN migrations — each in its own isolated connection/transaction
-    # This prevents a single failed ADD COLUMN (column already exists) from aborting
-    # subsequent migrations in PostgreSQL, which is the root cause of the schema mismatch.
     await _run_add_column_migrations()
 
     # Step 3: Expand column types that may be too narrow in production PostgreSQL
-    # Runs in a dedicated autocommit isolation so it cannot be blocked by Step 2 failures.
     await _run_column_type_migrations()
+
+    # Step 3.5: TEMPORARY DIAGNOSTIC: Log internships table schema details in production
+    await _log_internships_schema_diagnostic()
 
     # Step 4: Auto-seed database if empty
     await seed_database_data()
 
     # Step 5: Start background opportunity sync scheduler (Greenhouse + Adzuna)
     OpportunitySyncService.start_scheduler()
+
+
+async def _log_internships_schema_diagnostic():
+    """
+    TEMPORARY DIAGNOSTIC LOGGING:
+    Queries information_schema.columns for table_name = 'internships' to inspect actual PostgreSQL column data types and character lengths in production.
+    """
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
+
+    logger.info("=== TEMPORARY DIAGNOSTIC: INSPECTING PRODUCTION INTERNSHIPS SCHEMA ===")
+    try:
+        if is_postgres:
+            raw_conn = await engine.raw_connection()
+            try:
+                res = await raw_conn.execute(
+                    "SELECT column_name, data_type, character_maximum_length "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = 'internships' "
+                    "ORDER BY ordinal_position;"
+                )
+                rows = await res.fetchall()
+                for row in rows:
+                    col_name = row[0]
+                    data_type = row[1]
+                    max_len = row[2]
+                    logger.info(f"[DIAGNOSTIC SCHEMA] Column: {col_name:<30} | Type: {data_type:<20} | MaxLength: {max_len}")
+            finally:
+                await raw_conn.close()
+        else:
+            async with engine.connect() as conn:
+                res = await conn.execute(text("PRAGMA table_info(internships);"))
+                rows = res.fetchall()
+                for row in rows:
+                    logger.info(f"[DIAGNOSTIC SQLITE] Column: {row[1]:<30} | Type: {row[2]:<20}")
+    except Exception as e:
+        logger.error(f"[DIAGNOSTIC SCHEMA ERROR] Failed to query internships table schema: {e}")
+    logger.info("=== END TEMPORARY DIAGNOSTIC ===")
 
 
 async def _run_add_column_migrations():
@@ -143,23 +182,20 @@ async def _run_add_column_migrations():
     for table, col_def in all_migrations:
         try:
             if is_postgres:
-                # Use a raw connection in AUTOCOMMIT mode so each statement is fully isolated.
-                # A failure here (column already exists) does NOT affect any other statement.
                 raw_conn = await engine.raw_connection()
                 try:
                     await raw_conn.set_autocommit(True)
                     await raw_conn.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_def}")
                 except Exception:
-                    pass  # Expected: column already exists or type conflict
+                    pass
                 finally:
                     await raw_conn.close()
             else:
-                # SQLite: use a normal connection (SQLite does not support IF NOT EXISTS on columns)
                 async with engine.begin() as conn:
                     try:
                         await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_def}"))
                     except Exception:
-                        pass  # Expected: column already exists
+                        pass
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"ADD COLUMN migration skipped ({table}.{col_def[:30]}): {e}")
@@ -170,18 +206,10 @@ async def _run_column_type_migrations():
     Expands column types that are too narrow for real Greenhouse/Adzuna data.
     Each ALTER COLUMN runs in full isolation so that prior failures cannot block this.
     Only applies to PostgreSQL — SQLite column types are advisory only.
-
-    Columns that have proven too narrow in production (VARCHAR(100) receiving 4000+ char data):
-      - internships.title        → VARCHAR(255)
-      - internships.description  → TEXT
-      - internships.location     → VARCHAR(255)
-      - internships.stipend      → VARCHAR(255)
-      - internships.company_sector → VARCHAR(255)
-      - internships.employment_type → VARCHAR(255)
     """
     is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
     if not is_postgres:
-        return  # SQLite column types are advisory, no action needed
+        return
 
     import logging
     logger = logging.getLogger(__name__)
@@ -206,7 +234,7 @@ async def _run_column_type_migrations():
             except Exception as e:
                 err_str = str(e).lower()
                 if "already" in err_str or "no changes" in err_str or "does not exist" in err_str:
-                    pass  # Column already correct type or doesn't exist yet
+                    pass
                 else:
                     logger.warning(f"Column type migration {table}.{column} → {new_type}: {e}")
             finally:
