@@ -226,14 +226,20 @@ async def _run_column_type_migrations():
         return
 
     import logging
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("uvicorn.error")
 
     try:
-        async with engine.begin() as conn:
-            await conn.execute(text("ALTER TABLE internships ALTER COLUMN location TYPE VARCHAR(255) USING location::VARCHAR(255);"))
-            logger.info("Schema migration applied: internships.location → VARCHAR(255)")
+        raw_conn = await engine.raw_connection()
+        try:
+            driver_conn = raw_conn.driver_connection
+            await driver_conn.execute("ALTER TABLE internships ALTER COLUMN location TYPE VARCHAR(255);")
+            logger.info("Schema migration applied successfully: internships.location → VARCHAR(255)")
+        except Exception as e:
+            logger.warning(f"Column type migration internships.location → VARCHAR(255): {e}")
+        finally:
+            await raw_conn.close()
     except Exception as e:
-        logger.warning(f"Column type migration internships.location → VARCHAR(255): {e}")
+        logger.error(f"CRITICAL: Could not acquire connection for column type migration: {e}")
     
 
 @app.get("/health", tags=["Observability"])
