@@ -134,7 +134,8 @@ async def google_login(
     """
     # --- STAGE 1: GOOGLE AUTHENTICATION ---
     try:
-        client_id = settings.GOOGLE_CLIENT_ID if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_ID != "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com" else None
+        raw_cid = settings.GOOGLE_CLIENT_ID.strip() if settings.GOOGLE_CLIENT_ID else ""
+        client_id = raw_cid if raw_cid and raw_cid not in ["YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", "104928172938-samplegoogleclientid.apps.googleusercontent.com"] else None
 
         id_info = id_token.verify_oauth2_token(
             data.credential,

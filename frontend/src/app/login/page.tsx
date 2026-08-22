@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
-  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "104928172938-samplegoogleclientid.apps.googleusercontent.com";
+  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "609018289565-qltf0pmrvl7hi1tbu6k445ikb6p3q4ea.apps.googleusercontent.com";
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
