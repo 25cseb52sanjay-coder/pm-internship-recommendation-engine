@@ -116,6 +116,46 @@ async def _log_internships_schema_diagnostic():
     logger.info("=== END TEMPORARY DIAGNOSTIC ===")
 
 
+@app.get("/schema-diagnostic", tags=["Observability"])
+async def schema_diagnostic():
+    """TEMPORARY READ-ONLY DIAGNOSTIC: Returns production information_schema.columns for internships."""
+    is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
+    columns = []
+    try:
+        if is_postgres:
+            raw_conn = await engine.raw_connection()
+            try:
+                res = await raw_conn.execute(
+                    "SELECT column_name, data_type, character_maximum_length "
+                    "FROM information_schema.columns "
+                    "WHERE table_name = 'internships' "
+                    "ORDER BY ordinal_position;"
+                )
+                rows = await res.fetchall()
+                for row in rows:
+                    columns.append({
+                        "column_name": row[0],
+                        "data_type": row[1],
+                        "character_maximum_length": row[2]
+                    })
+            finally:
+                await raw_conn.close()
+        else:
+            async with engine.connect() as conn:
+                res = await conn.execute(text("PRAGMA table_info(internships);"))
+                rows = res.fetchall()
+                for row in rows:
+                    columns.append({
+                        "column_name": row[1],
+                        "data_type": row[2],
+                        "character_maximum_length": None
+                    })
+    except Exception as e:
+        return {"error": str(e)}
+
+    return {"is_postgres": is_postgres, "columns": columns}
+
+
 async def _run_add_column_migrations():
     """
     Runs all ADD COLUMN migrations with each statement in its own isolated connection.
