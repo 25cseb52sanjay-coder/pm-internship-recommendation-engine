@@ -77,6 +77,8 @@ async def startup_event():
     OpportunitySyncService.start_scheduler()
 
 
+from app.db.database import engine, Base, AsyncSessionLocal
+
 async def _log_internships_schema_diagnostic():
     """
     TEMPORARY DIAGNOSTIC LOGGING:
@@ -87,14 +89,14 @@ async def _log_internships_schema_diagnostic():
 
     logger.info("=== TEMPORARY DIAGNOSTIC: INSPECTING PRODUCTION INTERNSHIPS SCHEMA ===")
     try:
-        async with engine.connect() as conn:
-            res = await conn.execute(text(
+        async with AsyncSessionLocal() as session:
+            res = await session.execute(text(
                 "SELECT column_name, data_type, character_maximum_length "
                 "FROM information_schema.columns "
                 "WHERE table_name = 'internships' "
                 "ORDER BY ordinal_position;"
             ))
-            for row in res:
+            for row in res.all():
                 col_name = str(row[0])
                 data_type = str(row[1])
                 max_len = row[2]
@@ -109,14 +111,14 @@ async def schema_diagnostic():
     """TEMPORARY READ-ONLY DIAGNOSTIC: Returns production information_schema.columns for internships."""
     columns = []
     try:
-        async with engine.connect() as conn:
-            res = await conn.execute(text(
+        async with AsyncSessionLocal() as session:
+            res = await session.execute(text(
                 "SELECT column_name, data_type, character_maximum_length "
                 "FROM information_schema.columns "
                 "WHERE table_name = 'internships' "
                 "ORDER BY ordinal_position;"
             ))
-            for row in res:
+            for row in res.all():
                 columns.append({
                     "column_name": str(row[0]),
                     "data_type": str(row[1]),
