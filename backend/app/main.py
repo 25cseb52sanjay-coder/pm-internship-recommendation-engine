@@ -219,7 +219,6 @@ async def _run_add_column_migrations():
 async def _run_column_type_migrations():
     """
     Expands column types that are too narrow for real Greenhouse/Adzuna data.
-    Each ALTER COLUMN runs in full isolation so that prior failures cannot block this.
     Only applies to PostgreSQL — SQLite column types are advisory only.
     """
     is_postgres = "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL
@@ -229,28 +228,12 @@ async def _run_column_type_migrations():
     import logging
     logger = logging.getLogger(__name__)
 
-    type_migrations = [
-        ("internships", "location", "VARCHAR(255)"),
-    ]
-
-    for table, column, new_type in type_migrations:
-        try:
-            raw_conn = await engine.raw_connection()
-            try:
-                await raw_conn.set_autocommit(True)
-                sql = f"ALTER TABLE {table} ALTER COLUMN {column} TYPE {new_type} USING {column}::{new_type}"
-                await raw_conn.execute(sql)
-                logger.info(f"Schema migration applied: {table}.{column} → {new_type}")
-            except Exception as e:
-                err_str = str(e).lower()
-                if "already" in err_str or "no changes" in err_str or "does not exist" in err_str:
-                    pass
-                else:
-                    logger.warning(f"Column type migration {table}.{column} → {new_type}: {e}")
-            finally:
-                await raw_conn.close()
-        except Exception as e:
-            logger.error(f"CRITICAL: Could not acquire connection for column type migration {table}.{column}: {e}")
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE internships ALTER COLUMN location TYPE VARCHAR(255) USING location::VARCHAR(255);"))
+            logger.info("Schema migration applied: internships.location → VARCHAR(255)")
+    except Exception as e:
+        logger.warning(f"Column type migration internships.location → VARCHAR(255): {e}")
     
 
 @app.get("/health", tags=["Observability"])
