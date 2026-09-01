@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func, case
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 
@@ -25,22 +25,20 @@ async def list_internships(
     db: AsyncSession = Depends(get_db)
 ):
     # Strict VERIFIED_LIVE Filtering with Eager Loading (High-Performance Query Execution)
-    stmt = select(Internship).options(
-        selectinload(Internship.skills).selectinload(InternshipSkill.skill)
-    ).where(
+    where_clauses = [
         Internship.status == "VERIFIED_LIVE",
         Internship.verification_status == "VERIFIED",
         Internship.is_demo == False
-    )
+    ]
     if sector and isinstance(sector, str) and sector != "All":
-        stmt = stmt.where(Internship.company_sector == sector)
+        where_clauses.append(Internship.company_sector == sector)
     if location and isinstance(location, str) and location != "All":
-        stmt = stmt.where(Internship.location.ilike(f"%{location}%"))
+        where_clauses.append(Internship.location.ilike(f"%{location}%"))
     if work_mode and isinstance(work_mode, str) and work_mode != "All":
-        stmt = stmt.where(Internship.work_mode == work_mode)
+        where_clauses.append(Internship.work_mode == work_mode)
     if source and isinstance(source, str) and source != "All":
         if source.upper() == "NCS":
-            stmt = stmt.where(
+            where_clauses.append(
                 or_(
                     Internship.source == "NCS",
                     Internship.source_url.ilike("%ncs.gov.in%"),
@@ -48,31 +46,65 @@ async def list_internships(
                 )
             )
         else:
-            stmt = stmt.where(Internship.source.ilike(f"%{source}%"))
+            where_clauses.append(Internship.source.ilike(f"%{source}%"))
     if opportunity_type and isinstance(opportunity_type, str) and opportunity_type != "All":
         if opportunity_type.lower() in ("jobs", "job"):
-            stmt = stmt.where(Internship.opportunity_type == "JOB")
+            where_clauses.append(Internship.opportunity_type == "JOB")
         elif opportunity_type.lower() in ("internships", "internship"):
-            stmt = stmt.where(Internship.opportunity_type == "INTERNSHIP")
+            where_clauses.append(Internship.opportunity_type == "INTERNSHIP")
     if search and isinstance(search, str):
-        stmt = stmt.where(
+        where_clauses.append(
             (Internship.title.ilike(f"%{search}%")) |
             (Internship.company_name.ilike(f"%{search}%")) |
             (Internship.description.ilike(f"%{search}%"))
         )
 
-    # Sorting
-    if sort_by == "newest":
-        stmt = stmt.order_by(Internship.created_at.desc())
-    elif sort_by == "deadline":
-        stmt = stmt.order_by(Internship.deadline.asc())
+    # Sorting with Fair Source & Type Interleaved Diversity
+    if hasattr(sort_by, "default"):
+        sort_by = sort_by.default
+    if not sort_by:
+        sort_by = "newest"
 
-    # Pagination Offset & Limit (Point 14 Specification)
     offset = (page - 1) * limit
-    stmt = stmt.offset(offset).limit(limit)
+    if sort_by == "newest":
+        subq = select(
+            Internship.id,
+            func.row_number().over(
+                partition_by=Internship.source,
+                order_by=Internship.id.desc()
+            ).label("rn")
+        ).where(*where_clauses).subquery()
 
-    res = await db.execute(stmt)
-    internships = res.scalars().all()
+        id_stmt = select(subq.c.id, subq.c.rn).select_from(subq).order_by(
+            subq.c.rn.asc(),
+            subq.c.id.desc()
+        ).offset(offset).limit(limit)
+
+        id_res = await db.execute(id_stmt)
+        ordered_ids = [r[0] for r in id_res.all()]
+        if not ordered_ids:
+            return []
+
+        full_stmt = select(Internship).options(
+            selectinload(Internship.skills).selectinload(InternshipSkill.skill)
+        ).where(Internship.id.in_(ordered_ids))
+
+        full_res = await db.execute(full_stmt)
+        by_id = {item.id: item for item in full_res.scalars().all()}
+        internships = [by_id[i] for i in ordered_ids if i in by_id]
+    else:
+        stmt = select(Internship).options(
+            selectinload(Internship.skills).selectinload(InternshipSkill.skill)
+        ).where(*where_clauses)
+        if sort_by == "deadline":
+            stmt = stmt.order_by(Internship.deadline.asc())
+        else:
+            stmt = stmt.order_by(Internship.created_at.desc())
+
+        stmt = stmt.offset(offset).limit(limit)
+        res = await db.execute(stmt)
+        internships = res.scalars().all()
+
     output = []
     for item in internships:
         skill_list = []
