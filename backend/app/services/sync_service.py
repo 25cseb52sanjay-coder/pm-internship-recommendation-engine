@@ -76,7 +76,17 @@ class OpportunitySyncService:
                     results["sources"]["Adzuna"] = {"status": "FAILED", "error": str(e)}
                     results["status"] = "PARTIAL_SUCCESS"
 
-                # 3. NCS Sync Execution (Dormant Architecture Preservation)
+                # 3. Lever Sync Execution
+                try:
+                    from app.lever.sync_service import LeverSyncService
+                    lever_res = await LeverSyncService.run_full_lever_sync(db)
+                    results["sources"]["Lever"] = {"status": "SUCCESS", "details": lever_res}
+                except Exception as e:
+                    logger.error(f"Lever background sync failure: {str(e)}", exc_info=True)
+                    results["sources"]["Lever"] = {"status": "FAILED", "error": str(e)}
+                    results["status"] = "PARTIAL_SUCCESS"
+
+                # 4. NCS Sync Execution (Dormant Architecture Preservation)
                 results["sources"]["NCS"] = {
                     "status": "DORMANT",
                     "message": "NCS API integration is dormant. Live ingestion requires restricted institutional API authorization."

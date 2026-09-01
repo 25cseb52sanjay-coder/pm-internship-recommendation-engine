@@ -54,6 +54,9 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
   const isAdzuna = internship.source === "Adzuna" ||
                    (internship.source_name && internship.source_name.toLowerCase().includes("adzuna"));
 
+  const isLever = internship.source === "Lever" ||
+                  (internship.source_name && internship.source_name.toLowerCase().includes("lever"));
+
   const rawApplyUrl = internship.apply_url || internship.application_url;
 
   const getScoreBadgeClass = (sc: number) => {
@@ -77,6 +80,7 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
 
       // Generic provider or company root rejection
       if ((host.includes("boards.greenhouse.io") || host.includes("greenhouse.io")) && (!path || path === "")) return null;
+      if ((host.includes("jobs.lever.co") || host.includes("lever.co")) && (!path || path === "")) return null;
       if (host.includes("adzuna") && (!path || path === "" || path === "/search" || path === "/jobs")) return null;
       if (host.includes("pminternship.mca.gov.in") && (!path || path === "")) return null;
       if (host.includes("ncs.gov.in") && (!path || path === "" || path === "/internships-jobs")) return null;
@@ -89,7 +93,7 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
 
   const safeUrl = sanitizeAndValidateUrl(rawApplyUrl);
 
-  // Adzuna-Specific Target URL Resolution (Strictly Isolated — Greenhouse & NCS Untouched)
+  // Adzuna-Specific Target URL Resolution (Strictly Isolated — Greenhouse, Lever & NCS Untouched)
   let adzunaTargetUrl: string | null = null;
   if (isAdzuna) {
     if (rawApplyUrl && rawApplyUrl !== "APPLICATION_URL_UNAVAILABLE") {
@@ -103,7 +107,7 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
     }
   }
 
-  // Effective destination URL: Adzuna uses isolated resolution; Greenhouse/NCS/PMIS use original safeUrl
+  // Effective destination URL: Adzuna uses isolated resolution; Greenhouse/Lever/NCS/PMIS use original safeUrl
   const effectiveApplyUrl = isAdzuna ? adzunaTargetUrl : safeUrl;
 
   const handleSave = async () => {
@@ -165,6 +169,10 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
               ) : isGreenhouse ? (
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
                   Source: Greenhouse
+                </span>
+              ) : isLever ? (
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                  Source: Lever
                 </span>
               ) : isNCS ? (
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">

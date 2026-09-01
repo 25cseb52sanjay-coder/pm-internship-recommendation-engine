@@ -87,6 +87,7 @@ export default function InternshipCatalogPage() {
             <option value="All">All Sources</option>
             <option value="Adzuna">Adzuna Official</option>
             <option value="Greenhouse">Greenhouse Official</option>
+            <option value="Lever">Lever Official</option>
             <option value="NCS">NCS (National Career Service)</option>
             <option value="PMIS">PM Scheme Official</option>
             <option value="COMPANY_CAREER">Official Company Careers</option>

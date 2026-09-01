@@ -32,13 +32,13 @@ async def list_internships(
         Internship.verification_status == "VERIFIED",
         Internship.is_demo == False
     )
-    if sector and sector != "All":
+    if sector and isinstance(sector, str) and sector != "All":
         stmt = stmt.where(Internship.company_sector == sector)
-    if location and location != "All":
+    if location and isinstance(location, str) and location != "All":
         stmt = stmt.where(Internship.location.ilike(f"%{location}%"))
-    if work_mode and work_mode != "All":
+    if work_mode and isinstance(work_mode, str) and work_mode != "All":
         stmt = stmt.where(Internship.work_mode == work_mode)
-    if source and source != "All":
+    if source and isinstance(source, str) and source != "All":
         if source.upper() == "NCS":
             stmt = stmt.where(
                 or_(
@@ -49,12 +49,12 @@ async def list_internships(
             )
         else:
             stmt = stmt.where(Internship.source.ilike(f"%{source}%"))
-    if opportunity_type and opportunity_type != "All":
+    if opportunity_type and isinstance(opportunity_type, str) and opportunity_type != "All":
         if opportunity_type.lower() in ("jobs", "job"):
             stmt = stmt.where(Internship.opportunity_type == "JOB")
         elif opportunity_type.lower() in ("internships", "internship"):
             stmt = stmt.where(Internship.opportunity_type == "INTERNSHIP")
-    if search:
+    if search and isinstance(search, str):
         stmt = stmt.where(
             (Internship.title.ilike(f"%{search}%")) |
             (Internship.company_name.ilike(f"%{search}%")) |
@@ -99,8 +99,8 @@ async def list_internships(
             "min_age": item.min_age,
             "max_age": item.max_age,
             "skills": skill_list,
-            "source": item.source or ("Adzuna" if item.source == "Adzuna" else ("NCS" if "ncs.gov.in" in (item.source_url or "") else "PMIS")),
-            "source_name": "Adzuna Official API" if item.source == "Adzuna" else ("Greenhouse Official" if item.source == "Greenhouse" else ("National Career Service (NCS)" if (item.source == "NCS" or "ncs.gov.in" in (item.source_url or "")) else "PM Scheme Official")),
+            "source": item.source or ("Adzuna" if item.source == "Adzuna" else ("Lever" if item.source == "Lever" else ("Greenhouse" if item.source == "Greenhouse" else ("NCS" if "ncs.gov.in" in (item.source_url or "") else "PMIS")))),
+            "source_name": "Adzuna Official API" if item.source == "Adzuna" else ("Greenhouse Official" if item.source == "Greenhouse" else ("Lever Official" if item.source == "Lever" else ("National Career Service (NCS)" if (item.source == "NCS" or "ncs.gov.in" in (item.source_url or "")) else "PM Scheme Official"))),
             "opportunity_type": item.opportunity_type or "INTERNSHIP",
             "apply_url": item.apply_url or item.source_url or (f"https://www.adzuna.in/details/{item.external_id}" if item.source == "Adzuna" and item.external_id else None),
             "application_url": item.apply_url or item.source_url or (f"https://www.adzuna.in/details/{item.external_id}" if item.source == "Adzuna" and item.external_id else None),
@@ -142,8 +142,8 @@ async def get_internship_detail(internship_id: int, db: AsyncSession = Depends(g
         "min_age": item.min_age,
         "max_age": item.max_age,
         "skills": skill_list,
-        "source": item.source or ("Adzuna" if item.source == "Adzuna" else ("NCS" if "ncs.gov.in" in (item.source_url or "") else "PMIS")),
-        "source_name": "Adzuna Official API" if item.source == "Adzuna" else ("Greenhouse Official" if item.source == "Greenhouse" else ("National Career Service (NCS)" if (item.source == "NCS" or "ncs.gov.in" in (item.source_url or "")) else "PM Scheme Official")),
+        "source": item.source or ("Adzuna" if item.source == "Adzuna" else ("Lever" if item.source == "Lever" else ("Greenhouse" if item.source == "Greenhouse" else ("NCS" if "ncs.gov.in" in (item.source_url or "") else "PMIS")))),
+        "source_name": "Adzuna Official API" if item.source == "Adzuna" else ("Greenhouse Official" if item.source == "Greenhouse" else ("Lever Official" if item.source == "Lever" else ("National Career Service (NCS)" if (item.source == "NCS" or "ncs.gov.in" in (item.source_url or "")) else "PM Scheme Official"))),
         "opportunity_type": item.opportunity_type or "INTERNSHIP",
         "apply_url": item.apply_url or item.source_url or (f"https://www.adzuna.in/details/{item.external_id}" if item.source == "Adzuna" and item.external_id else None),
         "application_url": item.apply_url or item.source_url or (f"https://www.adzuna.in/details/{item.external_id}" if item.source == "Adzuna" and item.external_id else None),

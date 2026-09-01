@@ -250,6 +250,7 @@ export default function ApplyInternshipPage() {
             <option value="All">All Sources</option>
             <option value="Adzuna">Adzuna Official</option>
             <option value="Greenhouse">Greenhouse Official</option>
+            <option value="Lever">Lever Official</option>
             <option value="NCS">NCS (National Career Service)</option>
             <option value="PMIS">PM Scheme Official</option>
             <option value="COMPANY_CAREER">Official Company Careers</option>
@@ -295,6 +296,7 @@ export default function ApplyInternshipPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {internships.map((opp, idx) => {
             const isGreenhouse = opp.source === "Greenhouse" || (opp.source_name && opp.source_name.toLowerCase().includes("greenhouse"));
+            const isLever = opp.source === "Lever" || (opp.source_name && opp.source_name.toLowerCase().includes("lever"));
             const isNCS = opp.source === "NCS" || (opp.source_name && (opp.source_name.includes("NCS") || opp.source_name.toLowerCase().includes("national career service")));
             const targetUrl = sanitizeAndValidateUrl(opp.apply_url || opp.application_url);
 
@@ -318,6 +320,10 @@ export default function ApplyInternshipPage() {
                     {isGreenhouse ? (
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shrink-0">
                         Source: Greenhouse
+                      </span>
+                    ) : isLever ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300 shrink-0">
+                        Source: Lever
                       </span>
                     ) : isNCS ? (
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
@@ -394,14 +400,14 @@ export default function ApplyInternshipPage() {
                     )}
                   </div>
 
-                  {(isGreenhouse || isNCS) && targetUrl ? (
+                  {(isGreenhouse || isLever || isNCS) && targetUrl ? (
                     <a
                       href={targetUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-1.5 rounded-lg bg-[#002147] hover:bg-blue-900 text-white font-bold text-xs flex items-center space-x-1 shadow-sm transition-all shrink-0"
                     >
-                      <span>Apply Now ({isGreenhouse ? "Greenhouse" : "NCS"}) ↗</span>
+                      <span>Apply Now ({isGreenhouse ? "Greenhouse" : isLever ? "Lever" : "NCS"}) ↗</span>
                     </a>
                   ) : (
                     <button
@@ -453,7 +459,7 @@ export default function ApplyInternshipPage() {
 
             <div className="space-y-1 pr-6">
               <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
-                {selectedOpp.source === "Adzuna" ? "Adzuna Official Posting" : selectedOpp.source === "Greenhouse" ? "Greenhouse Official Posting" : "Official PM Scheme Posting"}
+                {selectedOpp.source === "Adzuna" ? "Adzuna Official Posting" : selectedOpp.source === "Greenhouse" ? "Greenhouse Official Posting" : selectedOpp.source === "Lever" ? "Lever Official Posting" : "Official PM Scheme Posting"}
               </span>
               <h2 className="text-xl font-bold text-[#002147]">{selectedOpp.title}</h2>
               <p className="text-xs font-semibold text-slate-600">

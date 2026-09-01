@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     DOMAIN_TRUST_STRICT_MODE: bool = os.getenv("DOMAIN_TRUST_STRICT_MODE", "true").lower() == "true"
     PLAYWRIGHT_ALLOWED_DOMAINS: str = os.getenv("PLAYWRIGHT_ALLOWED_DOMAINS", "careers.isro.gov.in,nitiaayog.gov.in,tatamotors.com,bhel.com")
 
+    # Lever Public Job Board Configuration
+    LEVER_POSTING_SITES: str = os.getenv("LEVER_POSTING_SITES", "palantir,spotify")
+
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development").lower()
     CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://pminternship.mca.gov.in")
 
