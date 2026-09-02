@@ -85,6 +85,7 @@ export default function InternshipCatalogPage() {
             className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-slate-900 focus:border-blue-700"
           >
             <option value="All">All Sources</option>
+            <option value="Jobvetta">Jobvetta Official</option>
             <option value="Adzuna">Adzuna Official</option>
             <option value="Greenhouse">Greenhouse Official</option>
             <option value="Lever">Lever Official</option>

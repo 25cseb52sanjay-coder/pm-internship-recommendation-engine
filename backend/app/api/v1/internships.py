@@ -45,6 +45,14 @@ async def list_internships(
                     Internship.apply_url.ilike("%ncs.gov.in%")
                 )
             )
+        elif "JOBVETTA" in source.upper():
+            where_clauses.append(
+                or_(
+                    Internship.source == "Jobvetta",
+                    Internship.source_url.ilike("%jobvetta.com%"),
+                    Internship.apply_url.ilike("%jobvetta.com%")
+                )
+            )
         else:
             where_clauses.append(Internship.source.ilike(f"%{source}%"))
     if opportunity_type and isinstance(opportunity_type, str) and opportunity_type != "All":
