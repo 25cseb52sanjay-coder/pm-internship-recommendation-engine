@@ -55,8 +55,21 @@ class StudentProfileOut(BaseModel):
     projects_summary: Optional[str] = None
     skills: List[SkillBase] = []
 
+    leetcode_username: Optional[str] = None
+    leetcode_verification_status: Optional[str] = None
+    leetcode_metrics_status: Optional[str] = None
+    leetcode_total_solved: Optional[int] = None
+    leetcode_easy_solved: Optional[int] = None
+    leetcode_medium_solved: Optional[int] = None
+    leetcode_hard_solved: Optional[int] = None
+    leetcode_badges: Optional[List[str]] = None
+    leetcode_contest_rating: Optional[float] = None
+
     class Config:
         from_attributes = True
+
+class LeetCodeChallengeRequest(BaseModel):
+    leetcode_url: str
 
 class MissingSkillItem(BaseModel):
     skill: str

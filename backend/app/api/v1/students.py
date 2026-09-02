@@ -36,6 +36,46 @@ async def get_profile(
         {"id": r[0], "name": r[1], "category": r[2], "proficiency_level": r[3]}
         for r in skills_res.all()
     ]
+
+    # Fetch candidate's LeetCode Profile
+    from app.db.models import LeetCodeProfile
+    lc_prof_res = await db.execute(select(LeetCodeProfile).where(LeetCodeProfile.candidate_id == student.id))
+    leetcode_prof = lc_prof_res.scalar_one_or_none()
+
+    leetcode_username = None
+    leetcode_verification_status = "NOT_CONNECTED"
+    leetcode_metrics_status = "NOT_AVAILABLE"
+    leetcode_total_solved = None
+    leetcode_easy_solved = None
+    leetcode_medium_solved = None
+    leetcode_hard_solved = None
+    leetcode_badges = None
+    leetcode_contest_rating = None
+
+    if leetcode_prof:
+        leetcode_username = leetcode_prof.leetcode_username
+        leetcode_verification_status = leetcode_prof.verification_status
+        if leetcode_prof.verification_status == "VERIFIED":
+            from app.leetcode.metrics_service import LeetCodeMetricsService
+            # Read from DB first (cached)
+            m_res = await LeetCodeMetricsService.get_candidate_metrics(db, student.id)
+
+            # Fetch from LeetCode only if metrics missing or stale (>24 hours)
+            if not m_res.get("metrics") or m_res.get("data_status") == "STALE":
+                m_res = await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
+
+            if m_res.get("metrics"):
+                metrics = m_res["metrics"]
+                leetcode_metrics_status = "SUCCESS"
+                leetcode_total_solved = metrics.get("total_problems_solved")
+                leetcode_easy_solved = metrics.get("easy_solved")
+                leetcode_medium_solved = metrics.get("medium_solved")
+                leetcode_hard_solved = metrics.get("hard_solved")
+                leetcode_badges = metrics.get("badges")
+                leetcode_contest_rating = metrics.get("contest_rating")
+            else:
+                leetcode_metrics_status = "UNAVAILABLE"
+
     return {
         "id": student.id,
         "user_id": student.user_id,
@@ -58,7 +98,16 @@ async def get_profile(
         "preferred_duration": student.preferred_duration,
         "resume_url": student.resume_url,
         "projects_summary": student.projects_summary,
-        "skills": skills
+        "skills": skills,
+        "leetcode_username": leetcode_username,
+        "leetcode_verification_status": leetcode_verification_status,
+        "leetcode_metrics_status": leetcode_metrics_status,
+        "leetcode_total_solved": leetcode_total_solved,
+        "leetcode_easy_solved": leetcode_easy_solved,
+        "leetcode_medium_solved": leetcode_medium_solved,
+        "leetcode_hard_solved": leetcode_hard_solved,
+        "leetcode_badges": leetcode_badges,
+        "leetcode_contest_rating": leetcode_contest_rating
     }
 
 @router.post("/profile")
@@ -376,3 +425,89 @@ async def post_feedback(
     db.add(fb)
     await db.commit()
     return {"message": "Feedback recorded successfully"}
+
+
+# ------------------------------------------------------------------
+# LeetCode Profile Verification & Live Metrics Endpoints
+# ------------------------------------------------------------------
+
+from app.schemas.student import LeetCodeChallengeRequest
+from app.leetcode.verification import LeetCodeVerificationService
+from app.leetcode.metrics_service import LeetCodeMetricsService
+
+@router.post("/leetcode/challenge")
+async def generate_leetcode_challenge(
+    req: LeetCodeChallengeRequest,
+    student: StudentProfile = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 1: Check LeetCode profile existence and generate a single-use
+    cryptographic challenge token for BIO_TOKEN_CHALLENGE ownership verification.
+    """
+    exist_res = await LeetCodeVerificationService.verify_account_existence(req.leetcode_url)
+    if exist_res["status"] == "ACCOUNT_NOT_FOUND":
+        return {
+            "status": "ACCOUNT_NOT_FOUND",
+            "message": exist_res["message"],
+            "challenge_token": None
+        }
+    elif exist_res["status"] == "DATA_UNAVAILABLE":
+        return {
+            "status": "DATA_UNAVAILABLE",
+            "message": exist_res["message"],
+            "challenge_token": None
+        }
+
+    # Generate challenge token
+    ch_res = await LeetCodeVerificationService.generate_ownership_challenge(
+        db=db,
+        candidate_id=student.id,
+        raw_input=req.leetcode_url
+    )
+    return ch_res
+
+
+@router.post("/leetcode/verify")
+async def verify_leetcode_ownership(
+    student: StudentProfile = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 2: Inspect public LeetCode profile bio for the challenge token.
+    If verified, updates database status to VERIFIED and fetches real metrics.
+    """
+    ver_res = await LeetCodeVerificationService.verify_ownership_challenge(db=db, candidate_id=student.id)
+    if ver_res.get("verified"):
+        # Auto-fetch live metrics upon successful verification
+        await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
+    return ver_res
+
+
+@router.get("/leetcode/metrics")
+async def get_leetcode_metrics(
+    student: StudentProfile = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieves stored real profile metrics or fetches live metrics if verified.
+    """
+    return await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
+
+
+@router.delete("/leetcode")
+async def disconnect_leetcode_profile(
+    student: StudentProfile = Depends(get_current_student),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Disconnects and removes the candidate's LeetCode profile record.
+    """
+    from app.db.models import LeetCodeProfile
+    stmt = select(LeetCodeProfile).where(LeetCodeProfile.candidate_id == student.id)
+    res = await db.execute(stmt)
+    lc_prof = res.scalar_one_or_none()
+    if lc_prof:
+        await db.delete(lc_prof)
+        await db.commit()
+    return {"message": "LeetCode profile disconnected successfully"}

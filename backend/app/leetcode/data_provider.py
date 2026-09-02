@@ -105,7 +105,7 @@ class UnconfiguredLeetCodeProvider(LeetCodeDataProvider):
 class LeetCodeProviderRegistry:
     """
     Registry manager for configuring and retrieving the active LeetCodeDataProvider instance.
-    Defaults to UnconfiguredLeetCodeProvider for safety.
+    Defaults to UnconfiguredLeetCodeProvider for safety until configured.
     """
     _instance: Optional[LeetCodeDataProvider] = None
 

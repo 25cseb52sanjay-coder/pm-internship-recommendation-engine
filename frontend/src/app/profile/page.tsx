@@ -425,6 +425,12 @@ export default function ProfilePage() {
             full_name: data.full_name || data.name || prev.full_name || currentName || "",
             skills: mapBackendSkills(data.skills),
           }));
+          if (data.leetcode_verification_status === "VERIFIED") {
+            setLeetcodeStatus("VERIFIED");
+            setConnectedUsername(data.leetcode_username);
+          } else if (data.leetcode_username) {
+            setConnectedUsername(data.leetcode_username);
+          }
           const hasSavedProfile = !!(data.course_program && data.qualification_type);
           setIsEditMode(!hasSavedProfile);
         }
@@ -1445,21 +1451,28 @@ export default function ProfilePage() {
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!leetcodeInput.trim()) return;
                     setLeetcodeStatus("VALIDATING");
-                    setTimeout(() => {
-                      const cleanInput = leetcodeInput.trim().replace(/^https?:\/\/(www\.)?leetcode\.com\/(u\/)?/i, "").replace(/\/$/, "");
-                      if (cleanInput.toLowerCase().includes("invalid") || cleanInput.toLowerCase().includes("notfound")) {
+                    try {
+                      const res = await fetchApi("/students/leetcode/challenge", {
+                        method: "POST",
+                        body: JSON.stringify({ leetcode_url: leetcodeInput.trim() })
+                      });
+                      if (res.status === "OWNERSHIP_PENDING" && res.challenge_token) {
+                        setConnectedUsername(res.leetcode_username);
+                        setVerificationToken(res.challenge_token);
+                        setLeetcodeStatus("OWNERSHIP_PENDING");
+                      } else if (res.status === "ACCOUNT_NOT_FOUND") {
                         setLeetcodeStatus("ACCOUNT_NOT_FOUND");
+                      } else if (res.status === "DATA_UNAVAILABLE") {
+                        setLeetcodeStatus("DATA_UNAVAILABLE");
                       } else {
-                        setConnectedUsername(cleanInput);
-                        const token = `LEETCODE_VERIFY_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-                        setVerificationToken(token);
-                        setLeetcodeStatus("ACCOUNT_FOUND");
-                        setTimeout(() => setLeetcodeStatus("OWNERSHIP_PENDING"), 800);
+                        setLeetcodeStatus("ACCOUNT_NOT_FOUND");
                       }
-                    }, 1000);
+                    } catch (e) {
+                      setLeetcodeStatus("ACCOUNT_NOT_FOUND");
+                    }
                   }}
                   disabled={!leetcodeInput.trim() || leetcodeStatus === "VALIDATING" || leetcodeStatus === "OWNERSHIP_PENDING"}
                   className="px-4 py-2 bg-[#002147] hover:bg-[#001529] text-white font-bold text-xs rounded shadow-sm transition-colors disabled:opacity-50 flex items-center justify-center space-x-1.5 shrink-0"
@@ -1516,11 +1529,26 @@ export default function ProfilePage() {
                   <div className="flex items-center space-x-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setLeetcodeStatus("VALIDATING");
-                        setTimeout(() => {
-                          setLeetcodeStatus("VERIFIED");
-                        }, 1200);
+                        try {
+                          const res = await fetchApi("/students/leetcode/verify", {
+                            method: "POST"
+                          });
+                          if (res.verified && res.status === "VERIFIED") {
+                            setLeetcodeStatus("VERIFIED");
+                            const updatedProfile = await fetchApi("/students/profile");
+                            if (updatedProfile) {
+                              setProfile((prev: any) => ({ ...prev, ...updatedProfile }));
+                            }
+                          } else if (res.status === "DATA_UNAVAILABLE") {
+                            setLeetcodeStatus("DATA_UNAVAILABLE");
+                          } else {
+                            setLeetcodeStatus("VERIFICATION_FAILED");
+                          }
+                        } catch (e) {
+                          setLeetcodeStatus("VERIFICATION_FAILED");
+                        }
                       }}
                       className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded shadow transition-colors flex items-center space-x-1.5"
                     >
@@ -1563,9 +1591,9 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="flex items-center space-x-2 shrink-0">
-                  {connectedUsername && (
+                  {(connectedUsername || profile.leetcode_username) && (
                     <a
-                      href={`https://leetcode.com/u/${connectedUsername}`}
+                      href={`https://leetcode.com/u/${connectedUsername || profile.leetcode_username}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-1.5 bg-white hover:bg-slate-50 text-emerald-900 border border-emerald-300 font-bold rounded flex items-center space-x-1 shadow-xs"
@@ -1577,11 +1605,21 @@ export default function ProfilePage() {
 
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
+                      try {
+                        await fetchApi("/students/leetcode", { method: "DELETE" });
+                      } catch (e) {}
                       setLeetcodeStatus("NOT_CONNECTED");
                       setConnectedUsername(null);
                       setVerificationToken(null);
                       setLeetcodeInput("");
+                      setProfile((prev: any) => ({
+                        ...prev,
+                        leetcode_username: null,
+                        leetcode_verification_status: "NOT_CONNECTED",
+                        leetcode_metrics_status: "NOT_AVAILABLE",
+                        leetcode_total_solved: null
+                      }));
                     }}
                     className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-800 border border-red-200 font-bold rounded transition-colors"
                   >
