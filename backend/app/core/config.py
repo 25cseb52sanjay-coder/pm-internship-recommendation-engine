@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     ADZUNA_APP_ID: Optional[str] = os.getenv("ADZUNA_APP_ID", None)
     ADZUNA_APP_KEY: Optional[str] = os.getenv("ADZUNA_APP_KEY", None)
 
+    # Jobvetta Official REST API Authorization Credentials
+    JOBVETTA_API_KEY: Optional[str] = os.getenv("JOBVETTA_API_KEY", None)
+    JOBVETTA_API_BASE_URL: str = os.getenv("JOBVETTA_API_BASE_URL", "https://api.jobvetta.com/v1")
+
     # Discovery Engine Configuration
     SEARCH_PROVIDER_API_KEY: Optional[str] = os.getenv("SEARCH_PROVIDER_API_KEY", None)
     SEARCH_PROVIDER_ENDPOINT: str = os.getenv("SEARCH_PROVIDER_ENDPOINT", "https://api.bing.microsoft.com/v7.0/search")

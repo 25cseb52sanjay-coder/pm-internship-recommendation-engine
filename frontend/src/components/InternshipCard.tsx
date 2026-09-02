@@ -57,6 +57,9 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
   const isLever = internship.source === "Lever" ||
                   (internship.source_name && internship.source_name.toLowerCase().includes("lever"));
 
+  const isJobvetta = internship.source === "Jobvetta" ||
+                     (internship.source_name && internship.source_name.toLowerCase().includes("jobvetta"));
+
   const rawApplyUrl = internship.apply_url || internship.application_url;
 
   const getScoreBadgeClass = (sc: number) => {
@@ -162,7 +165,11 @@ export default function InternshipCard({ internship, recommendation, onActionSuc
               </span>
 
               {/* Source Label Badge */}
-              {isAdzuna ? (
+              {isJobvetta ? (
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                  Source: Jobvetta
+                </span>
+              ) : isAdzuna ? (
                 <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
                   Source: Adzuna
                 </span>

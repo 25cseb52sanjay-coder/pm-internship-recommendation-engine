@@ -16,7 +16,7 @@ async def list_internships(
     sector: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     work_mode: Optional[str] = Query(None),
-    source: Optional[str] = Query(None, description="Filter by internship data source: All, NCS, PMIS, Greenhouse, Company Careers"),
+    source: Optional[str] = Query(None, description="Filter by internship data source: All, Jobvetta, Adzuna, NCS, PMIS, Greenhouse, Company Careers"),
     opportunity_type: Optional[str] = Query(None, description="Filter by opportunity classification: All, Jobs, Internships"),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1, description="Page number for pagination (Point 14 Specification)"),

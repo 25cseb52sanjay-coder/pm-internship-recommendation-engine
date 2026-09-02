@@ -69,6 +69,17 @@ async def list_sources(
                 priority=2
             ),
             SourceRegistry(
+                source_name="Jobvetta Official API",
+                source_url="https://www.jobvetta.com/api",
+                source_type="AUTHORIZED_API",
+                authentication_method="BEARER_TOKEN",
+                authorization_status="AUTHORIZED",
+                health_status="ONLINE",
+                source_confidence=0.95,
+                priority=3,
+                enabled=True
+            ),
+            SourceRegistry(
                 source_name="LinkedIn Authorized API Stub",
                 source_url="https://api.linkedin.com/v2/jobs",
                 source_type="AUTHORIZED_API",
