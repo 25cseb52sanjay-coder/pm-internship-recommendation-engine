@@ -47,6 +47,9 @@ def run_source_ingestion_task(source_id: int):
                 connector = PMISConnector(feed_url=source.source_url)
             elif "Company Career" in source.source_name or source.source_type == "COMPANY_CAREER":
                 connector = CompanyCareerConnector(feed_url=source.source_url)
+            elif "Jobvetta" in source.source_name or source.source_type == "JOBVETTA_API":
+                from app.jobvetta.connector import JobvettaConnector
+                connector = JobvettaConnector()
             elif "LinkedIn" in source.source_name:
                 connector = LinkedInAuthorizedConnector()
             elif "Internshala" in source.source_name:

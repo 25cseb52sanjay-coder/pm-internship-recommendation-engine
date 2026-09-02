@@ -86,7 +86,17 @@ class OpportunitySyncService:
                     results["sources"]["Lever"] = {"status": "FAILED", "error": str(e)}
                     results["status"] = "PARTIAL_SUCCESS"
 
-                # 4. NCS Sync Execution (Dormant Architecture Preservation)
+                # 4. Jobvetta Sync Execution
+                try:
+                    from app.jobvetta.sync_service import JobvettaSyncService
+                    jv_res = await JobvettaSyncService.run_full_jobvetta_sync(db)
+                    results["sources"]["Jobvetta"] = {"status": "SUCCESS", "details": jv_res}
+                except Exception as e:
+                    logger.error(f"Jobvetta background sync failure: {str(e)}", exc_info=True)
+                    results["sources"]["Jobvetta"] = {"status": "FAILED", "error": str(e)}
+                    results["status"] = "PARTIAL_SUCCESS"
+
+                # 5. NCS Sync Execution (Dormant Architecture Preservation)
                 results["sources"]["NCS"] = {
                     "status": "DORMANT",
                     "message": "NCS API integration is dormant. Live ingestion requires restricted institutional API authorization."
