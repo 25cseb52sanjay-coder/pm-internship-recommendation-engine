@@ -20,6 +20,11 @@ export function getApiBaseUrl(): string {
   return "https://pm-internship-recommendation-engine-tqaf.onrender.com/api/v1";
 }
 
+export function getBackendRootUrl(): string {
+  const apiBase = getApiBaseUrl();
+  return apiBase.replace(/\/api\/v1\/?$/, "");
+}
+
 export function getAuthToken(): string | null {
   if (typeof window !== "undefined") {
     return localStorage.getItem("pm_internship_token");

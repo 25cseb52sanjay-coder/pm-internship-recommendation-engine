@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchApi } from "@/lib/api";
+import { fetchApi, getBackendRootUrl } from "@/lib/api";
 import { User, FileText, Upload, CheckCircle2, Plus, X, Sparkles, Building, MapPin, GraduationCap, Image as ImageIcon, Eye, ExternalLink, RefreshCw, UploadCloud, Trash2, PlusCircle, Code2, ShieldCheck, AlertCircle, Loader2, Copy, Check } from "lucide-react";
 const CATEGORY_OPTIONS = [
   "Programming Languages",
@@ -393,8 +393,6 @@ export default function ProfilePage() {
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [skillDropdownOpen, setSkillDropdownOpen] = useState(false);
 
-  const API_BACKEND = "http://127.0.0.1:8000";
-
   useEffect(() => {
     let currentName = "";
     if (typeof window !== "undefined") {
@@ -665,8 +663,14 @@ export default function ProfilePage() {
 
   const getFullFileUrl = (url: string | null) => {
     if (!url) return "";
-    if (url.startsWith("http")) return url;
-    return `${API_BACKEND}${url}`;
+    let cleanUrl = url;
+    if (cleanUrl.includes("/uploads/")) {
+      cleanUrl = "/uploads/" + cleanUrl.split("/uploads/").pop();
+    }
+    if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+      return cleanUrl;
+    }
+    return `${getBackendRootUrl()}${cleanUrl}`;
   };
 
   return (

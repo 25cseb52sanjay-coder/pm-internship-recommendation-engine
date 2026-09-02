@@ -95,7 +95,11 @@ async def get_profile(
         "preferred_location": student.preferred_location,
         "work_mode": student.work_mode,
         "preferred_duration": student.preferred_duration,
-        "resume_url": student.resume_url,
+        "resume_url": (
+            "/uploads/" + student.resume_url.split("/uploads/")[-1]
+            if student.resume_url and "/uploads/" in student.resume_url
+            else student.resume_url
+        ),
         "projects_summary": student.projects_summary,
         "skills": skills,
         "leetcode_username": leetcode_username,
