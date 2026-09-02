@@ -73,6 +73,11 @@ async def startup_event():
     # Step 5: Start background opportunity sync scheduler (Greenhouse + Adzuna)
     OpportunitySyncService.start_scheduler()
 
+    # Step 6: Configure live LeetCode GraphQL provider for production execution
+    from app.leetcode.graphql_provider import LeetCodeGraphQLProvider
+    from app.leetcode.data_provider import LeetCodeProviderRegistry
+    LeetCodeProviderRegistry.set_provider(LeetCodeGraphQLProvider())
+
 from app.db.database import engine, Base, AsyncSessionLocal
 
 

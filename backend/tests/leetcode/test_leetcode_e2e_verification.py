@@ -135,17 +135,19 @@ def test_leetcode_e2e_verification_suite():
 
             # Update mock provider token match dynamically for test
             class DynamicE2EProvider(RealE2EAuthorizedProvider):
-                async def get_profile_data(self, username: str):
+                async def get_solution_post(self, topic_id: int):
                     return ProviderResult(
                         status=ProviderResultStatus.SUCCESS,
                         message="OK",
-                        data={"username": username, "bio": f"Software Engineer | {gen_res['challenge_token']}"},
+                        data={"topic_id": topic_id, "author": "real_e2e_candidate", "content": f"// {gen_res['challenge_token']}\nfunction solution(){{}}"},
                         timestamp="2026-08-14T00:00:00Z"
                     )
 
             LeetCodeProviderRegistry.set_provider(DynamicE2EProvider())
 
-            ver_res = await LeetCodeVerificationService.verify_ownership_challenge(db, cand_id)
+            ver_res = await LeetCodeVerificationService.verify_ownership_challenge(
+                db, cand_id, solution_url="https://leetcode.com/problems/two-sum/solutions/6092040/my-solution/"
+            )
             print(f"  [Step 6] Backend VERIFIED Transition: verified={ver_res['verified']} | status='{ver_res['status']}'")
             assert ver_res["verified"] is True
             assert ver_res["status"] == "VERIFIED"

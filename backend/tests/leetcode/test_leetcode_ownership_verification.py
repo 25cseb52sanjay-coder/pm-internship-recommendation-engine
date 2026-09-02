@@ -48,7 +48,9 @@ def test_leetcode_ownership_verification_suite():
             # 2. Test Verification with Unconfigured Provider (Must Report Limitation & Remain Unverified)
             print("\n  [STEP 2] Verifying challenge with Unconfigured Provider (Must NOT falsely verify)...")
             LeetCodeProviderRegistry.reset()
-            ver_unconf = await LeetCodeVerificationService.verify_ownership_challenge(db, candidate_id=cand_id)
+            ver_unconf = await LeetCodeVerificationService.verify_ownership_challenge(
+                db, candidate_id=cand_id, solution_url="https://leetcode.com/problems/two-sum/solutions/6092040/my-solution/"
+            )
             print(f"    - Verified:           {ver_unconf['verified']}")
             print(f"    - System Status:      '{ver_unconf['status']}'")
             print(f"    - Message:            '{ver_unconf['message']}'")
@@ -61,24 +63,28 @@ def test_leetcode_ownership_verification_suite():
             print("\n  [STEP 3] Testing successful ownership verification via Authorized Provider...")
             target_token = gen_res["challenge_token"]
 
-            class MockAuthorizedBioProvider(LeetCodeDataProvider):
+            class MockAuthorizedSolutionProvider(LeetCodeDataProvider):
                 async def check_profile_exists(self, username: str) -> ProviderResult:
                     return ProviderResult(status=ProviderResultStatus.SUCCESS, message="Exists", timestamp="2026-08-14T00:00:00Z")
                 async def get_profile_data(self, username: str) -> ProviderResult:
-                    return ProviderResult(
-                        status=ProviderResultStatus.SUCCESS,
-                        message="Profile data retrieved",
-                        data={"username": username, "about_me": f"Software Dev | {target_token} | ML Enthusiast"},
-                        timestamp="2026-08-14T00:00:00Z"
-                    )
+                    return ProviderResult(status=ProviderResultStatus.SUCCESS, message="Data", timestamp="2026-08-14T00:00:00Z")
                 async def get_profile_statistics(self, username: str) -> ProviderResult:
                     return ProviderResult(status=ProviderResultStatus.SUCCESS, message="Stats", timestamp="2026-08-14T00:00:00Z")
+                async def get_solution_post(self, topic_id: int) -> ProviderResult:
+                    return ProviderResult(
+                        status=ProviderResultStatus.SUCCESS,
+                        message="Solution retrieved",
+                        data={"topic_id": topic_id, "author": "ownership_test_dev", "content": f"// {target_token}\nfunction twoSum(){{}}"},
+                        timestamp="2026-08-14T00:00:00Z"
+                    )
                 async def get_provider_status(self) -> dict:
                     return {"is_configured": True}
 
-            LeetCodeProviderRegistry.set_provider(MockAuthorizedBioProvider())
+            LeetCodeProviderRegistry.set_provider(MockAuthorizedSolutionProvider())
 
-            ver_success = await LeetCodeVerificationService.verify_ownership_challenge(db, candidate_id=cand_id)
+            ver_success = await LeetCodeVerificationService.verify_ownership_challenge(
+                db, candidate_id=cand_id, solution_url="https://leetcode.com/problems/two-sum/solutions/6092040/my-solution/"
+            )
             print(f"    - Verified:           {ver_success['verified']}")
             print(f"    - System Status:      '{ver_success['status']}'")
             print(f"    - Message:            '{ver_success['message']}'")

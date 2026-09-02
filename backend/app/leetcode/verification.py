@@ -123,7 +123,7 @@ class LeetCodeVerificationService:
                 account_exists=False,
                 ownership_status="PENDING",
                 verification_status="PENDING",
-                verification_method="BIO_TOKEN_CHALLENGE",
+                verification_method="SOLUTION_POST_CHALLENGE",
                 verification_challenge_token=challenge_token,
                 verification_created_at=now,
                 data_status="NOT_AVAILABLE"
@@ -134,7 +134,7 @@ class LeetCodeVerificationService:
             lc_prof.leetcode_username = username
             lc_prof.ownership_status = "PENDING"
             lc_prof.verification_status = "PENDING"
-            lc_prof.verification_method = "BIO_TOKEN_CHALLENGE"
+            lc_prof.verification_method = "SOLUTION_POST_CHALLENGE"
             lc_prof.verification_challenge_token = challenge_token
             lc_prof.verification_created_at = now
 
@@ -146,23 +146,39 @@ class LeetCodeVerificationService:
             "candidate_id": candidate_id,
             "leetcode_username": username,
             "normalized_profile_url": normalized_url,
-            "verification_method": "BIO_TOKEN_CHALLENGE",
+            "verification_method": "SOLUTION_POST_CHALLENGE",
             "challenge_token": challenge_token,
             "created_at": now.isoformat(),
             "expires_at": expires_at.isoformat(),
-            "instructions": f"Paste token '{challenge_token}' into your public LeetCode bio, then click Verify."
+            "instructions": f"Create a public LeetCode Solution containing comment '// {challenge_token}', then submit the Solution URL."
         }
+
+    @staticmethod
+    def extract_solution_topic_id(solution_url: str) -> Optional[int]:
+        """
+        Extracts numeric topic ID from LeetCode Problem Solution URL:
+        e.g., https://leetcode.com/problems/two-sum/solutions/6092040/python3-easy-solution/ -> 6092040
+        """
+        import re
+        if not solution_url:
+            return None
+        match = re.search(r'/problems/[^/]+/solutions/(\d+)', solution_url, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        return None
 
     @staticmethod
     async def verify_ownership_challenge(
         db: AsyncSession,
-        candidate_id: int
+        candidate_id: int,
+        solution_url: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Verifies ownership challenge via registered LeetCodeDataProvider.
+        Verifies Solution-Post ownership challenge via registered LeetCodeDataProvider.
         Strict Safety Rules:
         - Checks token expiry (TTL 15 minutes).
         - Enforces single-use token consumption upon verification.
+        - Verifies topic ID extraction, token presence, and author username match.
         - Controls final VERIFIED state strictly on the backend.
         - If no authorized provider is configured, returns DATA_UNAVAILABLE without marking VERIFIED.
         """
@@ -190,45 +206,92 @@ class LeetCodeVerificationService:
                 "message": f"Verification challenge expired after {CHALLENGE_TOKEN_TTL_MINUTES} minutes. Please generate a new challenge."
             }
 
-        target_token = lc_prof.verification_challenge_token
-        username = lc_prof.leetcode_username
+        if not solution_url:
+            return {
+                "verified": False,
+                "status": "INVALID_SOLUTION_URL",
+                "message": "Please provide a valid public LeetCode Problem Solution URL."
+            }
 
-        # Query registered LeetCodeDataProvider for public profile bio data
+        topic_id = LeetCodeVerificationService.extract_solution_topic_id(solution_url)
+        if not topic_id:
+            return {
+                "verified": False,
+                "status": "INVALID_SOLUTION_URL",
+                "message": "Invalid LeetCode Solution URL format. Please provide a URL in format: https://leetcode.com/problems/<problem-slug>/solutions/<id>/<title>/"
+            }
+
+        target_token = lc_prof.verification_challenge_token
+        claimed_username = lc_prof.leetcode_username
+
+        # Query registered LeetCodeDataProvider for public solution post content & author
         provider = LeetCodeProviderRegistry.get_provider()
-        provider_res = await provider.get_profile_data(username)
+        provider_res = await provider.get_solution_post(topic_id)
 
         if provider_res.status in (ProviderResultStatus.UNAVAILABLE, ProviderResultStatus.NOT_PERMITTED):
-            # Report limitation without falsely marking account VERIFIED
             return {
                 "verified": False,
                 "status": "DATA_UNAVAILABLE",
-                "leetcode_username": username,
+                "leetcode_username": claimed_username,
                 "message": f"Ownership verification limitation: {provider_res.message} Account remains PENDING.",
                 "provider_status": provider_res.status.value
             }
 
-        if provider_res.status == ProviderResultStatus.SUCCESS and provider_res.data:
-            bio_text = str(provider_res.data.get("about_me", "") or provider_res.data.get("bio", ""))
-            if target_token in bio_text:
-                # Backend controls final VERIFIED state
-                lc_prof.ownership_status = "VERIFIED"
-                lc_prof.verification_status = "VERIFIED"
-                lc_prof.account_exists = True
-                lc_prof.verified_at = now
-                lc_prof.last_verified_at = now
-                lc_prof.verification_challenge_token = None # Single-use token consumed
-                await db.commit()
-                await db.refresh(lc_prof)
+        if provider_res.status == ProviderResultStatus.NOT_FOUND:
+            return {
+                "verified": False,
+                "status": "NOT_FOUND",
+                "leetcode_username": claimed_username,
+                "message": f"Public LeetCode solution post #{topic_id} was not found."
+            }
 
+        if provider_res.status == ProviderResultStatus.SUCCESS and provider_res.data:
+            post_author = str(provider_res.data.get("author", "") or "")
+            post_content = str(provider_res.data.get("content", "") or "")
+
+            # 1. Author match check (case-insensitive)
+            if post_author.lower() != claimed_username.lower():
+                lc_prof.ownership_status = "FAILED"
+                lc_prof.verification_status = "FAILED"
+                await db.commit()
                 return {
-                    "verified": True,
-                    "status": "VERIFIED",
-                    "leetcode_username": username,
-                    "verified_at": now.isoformat(),
-                    "message": f"Ownership of @{username} successfully verified!"
+                    "verified": False,
+                    "status": "VERIFICATION_FAILED",
+                    "leetcode_username": claimed_username,
+                    "message": f"Solution post author '@{post_author}' does not match claimed LeetCode username '@{claimed_username}'."
                 }
 
-        # Token missing or invalid bio
+            # 2. Token match check
+            if target_token not in post_content:
+                lc_prof.ownership_status = "FAILED"
+                lc_prof.verification_status = "FAILED"
+                await db.commit()
+                return {
+                    "verified": False,
+                    "status": "VERIFICATION_FAILED",
+                    "leetcode_username": claimed_username,
+                    "message": f"Verification challenge token '{target_token}' was not found in the submitted LeetCode Solution post."
+                }
+
+            # Both Author and Token match!
+            lc_prof.ownership_status = "VERIFIED"
+            lc_prof.verification_status = "VERIFIED"
+            lc_prof.account_exists = True
+            lc_prof.verified_at = now
+            lc_prof.last_verified_at = now
+            lc_prof.verification_challenge_token = None # Single-use token consumed
+            await db.commit()
+            await db.refresh(lc_prof)
+
+            return {
+                "verified": True,
+                "status": "VERIFIED",
+                "leetcode_username": claimed_username,
+                "verified_at": now.isoformat(),
+                "message": f"Ownership of @{claimed_username} successfully verified via public LeetCode Solution post!"
+            }
+
+        # Unexpected failure
         lc_prof.ownership_status = "FAILED"
         lc_prof.verification_status = "FAILED"
         await db.commit()
@@ -236,7 +299,7 @@ class LeetCodeVerificationService:
         return {
             "verified": False,
             "status": "VERIFICATION_FAILED",
-            "leetcode_username": username,
-            "message": f"Verification challenge token '{target_token}' was not found in LeetCode profile bio for @{username}."
+            "leetcode_username": claimed_username,
+            "message": f"Unable to verify LeetCode Solution post #{topic_id}."
         }
 

@@ -68,8 +68,12 @@ class StudentProfileOut(BaseModel):
     class Config:
         from_attributes = True
 
-class LeetCodeChallengeRequest(BaseModel):
+class LeetCodeConnectRequest(BaseModel):
     leetcode_url: str
+
+class LeetCodeConnectResponse(BaseModel):
+    leetcode_username: str
+    problems_solved: Optional[int] = None
 
 class MissingSkillItem(BaseModel):
     skill: str

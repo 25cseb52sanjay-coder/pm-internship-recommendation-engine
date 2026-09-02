@@ -49,6 +49,17 @@ class LeetCodeDataProvider(ABC):
         """
         pass
 
+    async def get_solution_post(self, topic_id: int) -> ProviderResult:
+        """
+        Retrieves public solution post content and author details by topic ID.
+        Returns ProviderResult with status SUCCESS, NOT_FOUND, UNAVAILABLE, or ERROR.
+        """
+        return ProviderResult(
+            status=ProviderResultStatus.UNAVAILABLE,
+            message="get_solution_post not implemented by this provider.",
+            timestamp=datetime.utcnow().isoformat()
+        )
+
     @abstractmethod
     async def get_provider_status(self) -> Dict[str, Any]:
         """
@@ -84,6 +95,15 @@ class UnconfiguredLeetCodeProvider(LeetCodeDataProvider):
         )
 
     async def get_profile_statistics(self, username: str) -> ProviderResult:
+        return ProviderResult(
+            status=ProviderResultStatus.UNAVAILABLE,
+            message=self.reason,
+            data=None,
+            error=self.reason,
+            timestamp=datetime.utcnow().isoformat()
+        )
+
+    async def get_solution_post(self, topic_id: int) -> ProviderResult:
         return ProviderResult(
             status=ProviderResultStatus.UNAVAILABLE,
             message=self.reason,

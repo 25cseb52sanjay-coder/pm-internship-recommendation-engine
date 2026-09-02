@@ -39,12 +39,12 @@ class LeetCodeMetricsService:
         res = await db.execute(stmt)
         lc_prof = res.scalar_one_or_none()
 
-        if not lc_prof or lc_prof.verification_status != "VERIFIED":
+        if not lc_prof:
             return {
-                "status": "NOT_VERIFIED",
+                "status": "NOT_CONNECTED",
                 "candidate_id": candidate_id,
                 "data_status": "NOT_AVAILABLE",
-                "message": "Candidate LeetCode profile is not verified. Verification required before metrics retrieval.",
+                "message": "No LeetCode profile record found for candidate.",
                 "metrics": None
             }
 

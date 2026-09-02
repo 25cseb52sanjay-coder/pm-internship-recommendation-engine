@@ -380,6 +380,7 @@ export default function ProfilePage() {
   const [verificationToken, setVerificationToken] = useState<string | null>(null);
   const [connectedUsername, setConnectedUsername] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
+  const [solutionUrlInput, setSolutionUrlInput] = useState("");
   const [branchSearch, setBranchSearch] = useState("");
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
 
@@ -1428,24 +1429,23 @@ export default function ProfilePage() {
 
           <p className="text-xs text-slate-600 leading-relaxed">
             {leetcodeStatus === "DATA_UNAVAILABLE"
-              ? "LeetCode profile verification and live statistics are currently unavailable because an approved profile-data provider is not configured."
+              ? "LeetCode profile verification and live statistics are currently unavailable."
               : leetcodeStatus === "VERIFIED"
-              ? "Your LeetCode profile has been verified."
-              : "Connect your LeetCode profile to enable coding-profile evaluation when an approved data provider is available."}
+              ? "Your LeetCode profile is connected."
+              : "Connect your public LeetCode profile to display your total solved problems count."}
           </p>
 
           {/* Form Controls & Verification Steps */}
           {leetcodeStatus !== "VERIFIED" ? (
-            <div className="space-y-3 pt-1">
+            <div className="space-y-3">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex-1 relative">
+                <div className="relative flex-1">
                   <input
                     type="text"
                     value={leetcodeInput}
                     onChange={(e) => setLeetcodeInput(e.target.value)}
-                    placeholder="Enter LeetCode handle or URL (e.g. leetcode.com/u/candidate_dev)"
-                    disabled={leetcodeStatus === "VALIDATING" || leetcodeStatus === "OWNERSHIP_PENDING"}
-                    className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs text-slate-900 focus:border-blue-700 disabled:bg-slate-50 font-medium"
+                    placeholder="e.g. https://leetcode.com/u/25CSEB52SANJAY/"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs focus:ring-2 focus:ring-[#002147] focus:border-[#002147] outline-none"
                   />
                 </div>
 
@@ -1455,18 +1455,18 @@ export default function ProfilePage() {
                     if (!leetcodeInput.trim()) return;
                     setLeetcodeStatus("VALIDATING");
                     try {
-                      const res = await fetchApi("/students/leetcode/challenge", {
+                      const res = await fetchApi("/students/leetcode/connect", {
                         method: "POST",
                         body: JSON.stringify({ leetcode_url: leetcodeInput.trim() })
                       });
-                      if (res.status === "OWNERSHIP_PENDING" && res.challenge_token) {
+                      if (res && res.leetcode_username) {
                         setConnectedUsername(res.leetcode_username);
-                        setVerificationToken(res.challenge_token);
-                        setLeetcodeStatus("OWNERSHIP_PENDING");
-                      } else if (res.status === "ACCOUNT_NOT_FOUND") {
-                        setLeetcodeStatus("ACCOUNT_NOT_FOUND");
-                      } else if (res.status === "DATA_UNAVAILABLE") {
-                        setLeetcodeStatus("DATA_UNAVAILABLE");
+                        setLeetcodeStatus("VERIFIED");
+                        setProfile((prev: any) => ({
+                          ...prev,
+                          leetcode_username: res.leetcode_username,
+                          leetcode_total_solved: res.problems_solved
+                        }));
                       } else {
                         setLeetcodeStatus("ACCOUNT_NOT_FOUND");
                       }
@@ -1474,106 +1474,32 @@ export default function ProfilePage() {
                       setLeetcodeStatus("ACCOUNT_NOT_FOUND");
                     }
                   }}
-                  disabled={!leetcodeInput.trim() || leetcodeStatus === "VALIDATING" || leetcodeStatus === "OWNERSHIP_PENDING"}
+                  disabled={!leetcodeInput.trim() || leetcodeStatus === "VALIDATING"}
                   className="px-4 py-2 bg-[#002147] hover:bg-[#001529] text-white font-bold text-xs rounded shadow-sm transition-colors disabled:opacity-50 flex items-center justify-center space-x-1.5 shrink-0"
                 >
                   {leetcodeStatus === "VALIDATING" ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Validating Handle...</span>
+                      <span>Connecting...</span>
                     </>
                   ) : (
                     <>
                       <Code2 className="w-3.5 h-3.5" />
-                      <span>Connect and Verify</span>
+                      <span>Connect / Check</span>
                     </>
                   )}
                 </button>
               </div>
 
-              {/* Ownership Verification Challenge Instructions Box */}
-              {(leetcodeStatus === "ACCOUNT_FOUND" || leetcodeStatus === "OWNERSHIP_PENDING" || leetcodeStatus === "VERIFICATION_FAILED") && verificationToken && (
-                <div className="p-4 rounded-lg bg-blue-50/80 border border-blue-200 text-xs space-y-3 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-blue-950 flex items-center space-x-1.5">
-                      <ShieldCheck className="w-4 h-4 text-blue-700" />
-                      <span>Account Ownership Challenge (No Password Required)</span>
-                    </h4>
-                    <span className="text-[10px] font-semibold text-blue-800 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-                      Step 2 of 2
-                    </span>
-                  </div>
-
-                  <p className="text-slate-700 leading-relaxed">
-                    To confirm that <strong>@{connectedUsername}</strong> belongs to you, temporarily paste this verification code into your LeetCode profile bio:
-                  </p>
-
-                  <div className="p-2.5 bg-white border border-blue-300 rounded font-mono text-xs text-blue-900 font-bold flex items-center justify-between">
-                    <span>{verificationToken}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (verificationToken) {
-                          navigator.clipboard.writeText(verificationToken);
-                          setCopiedToken(true);
-                          setTimeout(() => setCopiedToken(false), 2000);
-                        }
-                      }}
-                      className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded border border-blue-200 text-[11px] font-bold flex items-center space-x-1 transition-colors"
-                    >
-                      {copiedToken ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedToken ? "Copied!" : "Copy Token"}</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center space-x-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setLeetcodeStatus("VALIDATING");
-                        try {
-                          const res = await fetchApi("/students/leetcode/verify", {
-                            method: "POST"
-                          });
-                          if (res.verified && res.status === "VERIFIED") {
-                            setLeetcodeStatus("VERIFIED");
-                            const updatedProfile = await fetchApi("/students/profile");
-                            if (updatedProfile) {
-                              setProfile((prev: any) => ({ ...prev, ...updatedProfile }));
-                            }
-                          } else if (res.status === "DATA_UNAVAILABLE") {
-                            setLeetcodeStatus("DATA_UNAVAILABLE");
-                          } else {
-                            setLeetcodeStatus("VERIFICATION_FAILED");
-                          }
-                        } catch (e) {
-                          setLeetcodeStatus("VERIFICATION_FAILED");
-                        }
-                      }}
-                      className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded shadow transition-colors flex items-center space-x-1.5"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Check Bio Token & Verify Ownership</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLeetcodeStatus("NOT_CONNECTED");
-                        setVerificationToken(null);
-                        setConnectedUsername(null);
-                      }}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded border border-slate-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+              {leetcodeStatus === "ACCOUNT_NOT_FOUND" && (
+                <p className="text-xs text-red-600 font-medium pt-1">
+                  Unable to retrieve public LeetCode profile. Please check the profile URL.
+                </p>
               )}
             </div>
           ) : (
-            /* Connected & Verified LeetCode Display Box */
-            <div className="p-4 rounded-lg bg-emerald-50/80 border border-emerald-300 text-xs space-y-4">
+            /* Connected LeetCode Display Box */
+            <div className="p-4 rounded-lg bg-emerald-50/80 border border-emerald-300 text-xs space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center space-x-2.5">
                   <div className="w-9 h-9 rounded-full bg-emerald-100 border border-emerald-400 flex items-center justify-center text-emerald-900 font-bold shrink-0">
@@ -1581,28 +1507,16 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-emerald-950 flex items-center space-x-1 text-sm">
-                      <span>LeetCode Profile Verified</span>
+                      <span>LeetCode Profile</span>
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     </h4>
                     <p className="text-xs text-emerald-800 font-medium">
-                      Connected Handle: <strong className="text-emerald-950">@{connectedUsername || profile.leetcode_username || "unlinked"}</strong> • Method: <span className="font-mono text-[11px]">BIO_TOKEN_CHALLENGE</span>
+                      Connected Handle: <strong className="text-emerald-950">@{connectedUsername || profile.leetcode_username}</strong>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 shrink-0">
-                  {(connectedUsername || profile.leetcode_username) && (
-                    <a
-                      href={`https://leetcode.com/u/${connectedUsername || profile.leetcode_username}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-emerald-900 border border-emerald-300 font-bold rounded flex items-center space-x-1 shadow-xs"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span>View LeetCode Profile ↗</span>
-                    </a>
-                  )}
-
                   <button
                     type="button"
                     onClick={async () => {
@@ -1611,13 +1525,10 @@ export default function ProfilePage() {
                       } catch (e) {}
                       setLeetcodeStatus("NOT_CONNECTED");
                       setConnectedUsername(null);
-                      setVerificationToken(null);
                       setLeetcodeInput("");
                       setProfile((prev: any) => ({
                         ...prev,
                         leetcode_username: null,
-                        leetcode_verification_status: "NOT_CONNECTED",
-                        leetcode_metrics_status: "NOT_AVAILABLE",
                         leetcode_total_solved: null
                       }));
                     }}
@@ -1628,75 +1539,15 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Real Verified Metrics Grid or Permitted DATA_UNAVAILABLE Banner */}
-              <div className="p-3 bg-white/90 border border-emerald-200 rounded-md space-y-3">
-                <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
-                  <span className="font-bold text-emerald-950 text-xs flex items-center space-x-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Verified Real Problem Statistics</span>
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-medium">
-                    Last Verified: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-
-                {profile.leetcode_metrics_status === "SUCCESS" && profile.leetcode_total_solved !== null && profile.leetcode_total_solved !== undefined ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      <div className="p-2 bg-slate-50 border border-slate-200 rounded">
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Solved</div>
-                        <div className="text-base font-extrabold text-[#002147]">{profile.leetcode_total_solved}</div>
-                      </div>
-                      <div className="p-2 bg-emerald-50 border border-emerald-200 rounded">
-                        <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Easy Solved</div>
-                        <div className="text-base font-extrabold text-emerald-800">{profile.leetcode_easy_solved ?? 0}</div>
-                      </div>
-                      <div className="p-2 bg-amber-50 border border-amber-200 rounded">
-                        <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Medium Solved</div>
-                        <div className="text-base font-extrabold text-amber-800">{profile.leetcode_medium_solved ?? 0}</div>
-                      </div>
-                      <div className="p-2 bg-red-50 border border-red-200 rounded">
-                        <div className="text-[10px] font-bold text-red-700 uppercase tracking-wider">Hard Solved</div>
-                        <div className="text-base font-extrabold text-red-800">{profile.leetcode_hard_solved ?? 0}</div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
-                      <div className="p-2.5 bg-emerald-50/50 border border-emerald-200 rounded space-y-1.5">
-                        <h5 className="font-bold text-emerald-950 flex items-center space-x-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Verified Coding Strengths</span>
-                        </h5>
-                        <ul className="space-y-1 text-slate-700 list-disc list-inside text-[11px] leading-relaxed">
-                          <li>Real problem-solving volume ({profile.leetcode_total_solved} total solved).</li>
-                          <li>Badges: {profile.leetcode_badges && profile.leetcode_badges.length > 0 ? profile.leetcode_badges.join(", ") : "None"}.</li>
-                        </ul>
-                      </div>
-
-                      <div className="p-2.5 bg-blue-50/50 border border-blue-200 rounded space-y-1.5">
-                        <h5 className="font-bold text-blue-950 flex items-center space-x-1">
-                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Targeted Growth Recommendations</span>
-                        </h5>
-                        <ul className="space-y-1 text-slate-700 list-disc list-inside text-[11px] leading-relaxed">
-                          <li>Continue practicing Data Structures & Algorithms.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Permitted DATA_UNAVAILABLE State (No Sample Numbers, No Fake Statistics) */
-                  <div className="p-3 bg-amber-50/60 border border-amber-200 rounded text-xs space-y-2">
-                    <div className="flex items-center space-x-2 text-amber-900 font-bold">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Live LeetCode profile metrics are currently unavailable through an approved data provider.</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-slate-600 font-mono text-[11px] pt-1">
-                      <div>Problems Solved: —</div>
-                      <div>Badges: —</div>
-                    </div>
-                  </div>
-                )}
+              <div className="p-3 bg-white border border-emerald-200 rounded-md flex items-center justify-between">
+                <span className="font-bold text-slate-700 text-xs">
+                  LeetCode Problems Solved:
+                </span>
+                <span className="font-extrabold text-base text-[#002147]">
+                  {profile.leetcode_total_solved !== null && profile.leetcode_total_solved !== undefined
+                    ? profile.leetcode_total_solved
+                    : "Unavailable"}
+                </span>
               </div>
             </div>
           )}

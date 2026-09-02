@@ -79,7 +79,9 @@ def test_leetcode_security_audit_suite():
 
             # Check unconfigured provider cannot verify
             LeetCodeProviderRegistry.reset()
-            ver_unconf = await LeetCodeVerificationService.verify_ownership_challenge(db, cand_id)
+            ver_unconf = await LeetCodeVerificationService.verify_ownership_challenge(
+                db, cand_id, solution_url="https://leetcode.com/problems/two-sum/solutions/6092040/my-solution/"
+            )
             assert ver_unconf["verified"] is False
             assert ver_unconf["status"] == "DATA_UNAVAILABLE"
 
@@ -88,19 +90,23 @@ def test_leetcode_security_audit_suite():
                 async def check_profile_exists(self, username: str):
                     return ProviderResult(status=ProviderResultStatus.SUCCESS, message="OK", timestamp="2026-08-14T00:00:00Z")
                 async def get_profile_data(self, username: str):
+                    return ProviderResult(status=ProviderResultStatus.SUCCESS, message="OK", timestamp="2026-08-14T00:00:00Z")
+                async def get_profile_statistics(self, username: str):
+                    return ProviderResult(status=ProviderResultStatus.SUCCESS, message="OK", timestamp="2026-08-14T00:00:00Z")
+                async def get_solution_post(self, topic_id: int):
                     return ProviderResult(
                         status=ProviderResultStatus.SUCCESS,
                         message="OK",
-                        data={"bio": f"Verification token: {gen_res['challenge_token']}"},
+                        data={"topic_id": topic_id, "author": "security_audit_candidate", "content": f"// {gen_res['challenge_token']}\nfunction solution(){{}}"},
                         timestamp="2026-08-14T00:00:00Z"
                     )
-                async def get_profile_statistics(self, username: str):
-                    return ProviderResult(status=ProviderResultStatus.SUCCESS, message="OK", timestamp="2026-08-14T00:00:00Z")
                 async def get_provider_status(self):
                     return {"is_configured": True}
 
             LeetCodeProviderRegistry.set_provider(AuthorizedAuditProvider())
-            ver_success = await LeetCodeVerificationService.verify_ownership_challenge(db, cand_id)
+            ver_success = await LeetCodeVerificationService.verify_ownership_challenge(
+                db, cand_id, solution_url="https://leetcode.com/problems/two-sum/solutions/6092040/my-solution/"
+            )
             assert ver_success["verified"] is True
 
             # Verify token consumed (None) in DB

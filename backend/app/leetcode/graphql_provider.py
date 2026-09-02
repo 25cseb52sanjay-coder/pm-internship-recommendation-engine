@@ -239,6 +239,59 @@ class LeetCodeGraphQLProvider(LeetCodeDataProvider):
             timestamp=now_str
         )
 
+    async def get_solution_post(self, topic_id: int) -> ProviderResult:
+        query = """
+        query topic($topicId: Int!) {
+          topic(id: $topicId) {
+            id
+            title
+            post {
+              id
+              content
+              author {
+                username
+              }
+            }
+          }
+        }
+        """
+        now_str = datetime.utcnow().isoformat()
+        res_json = await self._post_graphql(
+            query=query,
+            variables={"topicId": topic_id},
+            referer=f"https://leetcode.com/discuss/topic/{topic_id}/"
+        )
+        if not res_json or "data" not in res_json:
+            return ProviderResult(
+                status=ProviderResultStatus.UNAVAILABLE,
+                message="Unable to reach LeetCode GraphQL gateway.",
+                timestamp=now_str
+            )
+
+        topic_data = res_json.get("data", {}).get("topic")
+        if not topic_data or not topic_data.get("post"):
+            return ProviderResult(
+                status=ProviderResultStatus.NOT_FOUND,
+                message=f"LeetCode solution topic #{topic_id} not found.",
+                timestamp=now_str
+            )
+
+        post = topic_data["post"]
+        author = post.get("author", {}).get("username")
+        content = post.get("content", "")
+
+        return ProviderResult(
+            status=ProviderResultStatus.SUCCESS,
+            message=f"Solution topic #{topic_id} retrieved successfully.",
+            data={
+                "topic_id": topic_id,
+                "title": topic_data.get("title"),
+                "author": author,
+                "content": content
+            },
+            timestamp=now_str
+        )
+
     async def get_provider_status(self) -> Dict[str, Any]:
         return {
             "provider_name": "LeetCodeGraphQLProvider",

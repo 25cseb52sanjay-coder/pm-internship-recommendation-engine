@@ -55,26 +55,25 @@ async def get_profile(
     if leetcode_prof:
         leetcode_username = leetcode_prof.leetcode_username
         leetcode_verification_status = leetcode_prof.verification_status
-        if leetcode_prof.verification_status == "VERIFIED":
-            from app.leetcode.metrics_service import LeetCodeMetricsService
-            # Read from DB first (cached)
-            m_res = await LeetCodeMetricsService.get_candidate_metrics(db, student.id)
+        from app.leetcode.metrics_service import LeetCodeMetricsService
+        # Read from DB first (cached)
+        m_res = await LeetCodeMetricsService.get_candidate_metrics(db, student.id)
 
-            # Fetch from LeetCode only if metrics missing or stale (>24 hours)
-            if not m_res.get("metrics") or m_res.get("data_status") == "STALE":
-                m_res = await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
+        # Fetch from LeetCode only if metrics missing or stale (>24 hours)
+        if not m_res.get("metrics") or m_res.get("data_status") == "STALE":
+            m_res = await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
 
-            if m_res.get("metrics"):
-                metrics = m_res["metrics"]
-                leetcode_metrics_status = "SUCCESS"
-                leetcode_total_solved = metrics.get("total_problems_solved")
-                leetcode_easy_solved = metrics.get("easy_solved")
-                leetcode_medium_solved = metrics.get("medium_solved")
-                leetcode_hard_solved = metrics.get("hard_solved")
-                leetcode_badges = metrics.get("badges")
-                leetcode_contest_rating = metrics.get("contest_rating")
-            else:
-                leetcode_metrics_status = "UNAVAILABLE"
+        if m_res.get("metrics"):
+            metrics = m_res["metrics"]
+            leetcode_metrics_status = "SUCCESS"
+            leetcode_total_solved = metrics.get("total_problems_solved")
+            leetcode_easy_solved = metrics.get("easy_solved")
+            leetcode_medium_solved = metrics.get("medium_solved")
+            leetcode_hard_solved = metrics.get("hard_solved")
+            leetcode_badges = metrics.get("badges")
+            leetcode_contest_rating = metrics.get("contest_rating")
+        else:
+            leetcode_metrics_status = "UNAVAILABLE"
 
     return {
         "id": student.id,
@@ -431,62 +430,69 @@ async def post_feedback(
 # LeetCode Profile Verification & Live Metrics Endpoints
 # ------------------------------------------------------------------
 
-from app.schemas.student import LeetCodeChallengeRequest
-from app.leetcode.verification import LeetCodeVerificationService
-from app.leetcode.metrics_service import LeetCodeMetricsService
-from app.leetcode.graphql_provider import LeetCodeGraphQLProvider
-from app.leetcode.data_provider import LeetCodeProviderRegistry
+from app.schemas.student import LeetCodeConnectRequest, LeetCodeConnectResponse
+from app.leetcode.url_validator import validate_and_normalize_leetcode_url
+from app.db.models import LeetCodeProfile
 
-# Configure live LeetCode GraphQL provider for production execution
-LeetCodeProviderRegistry.set_provider(LeetCodeGraphQLProvider())
-
-@router.post("/leetcode/challenge")
-async def generate_leetcode_challenge(
-    req: LeetCodeChallengeRequest,
+@router.post("/leetcode/connect", response_model=LeetCodeConnectResponse)
+async def connect_leetcode_profile(
+    req: LeetCodeConnectRequest,
     student: StudentProfile = Depends(get_current_student),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Step 1: Check LeetCode profile existence and generate a single-use
-    cryptographic challenge token for BIO_TOKEN_CHALLENGE ownership verification.
+    Direct LeetCode Profile Connection:
+    1. Validates and normalizes the public profile URL (e.g. https://leetcode.com/u/25CSEB52SANJAY/).
+    2. Checks 24-hour cache in database; if missing or stale (>24h), queries public LeetCode GraphQL provider.
+    3. Persists total_problems_solved and returns {"leetcode_username": username, "problems_solved": count}.
     """
-    exist_res = await LeetCodeVerificationService.verify_account_existence(req.leetcode_url)
-    if exist_res["status"] == "ACCOUNT_NOT_FOUND":
-        return {
-            "status": "ACCOUNT_NOT_FOUND",
-            "message": exist_res["message"],
-            "challenge_token": None
-        }
-    elif exist_res["status"] == "DATA_UNAVAILABLE":
-        return {
-            "status": "DATA_UNAVAILABLE",
-            "message": exist_res["message"],
-            "challenge_token": None
-        }
+    val_res = validate_and_normalize_leetcode_url(req.leetcode_url)
+    if not val_res["valid"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=val_res.get("error", "Invalid LeetCode profile URL.")
+        )
 
-    # Generate challenge token
-    ch_res = await LeetCodeVerificationService.generate_ownership_challenge(
-        db=db,
-        candidate_id=student.id,
-        raw_input=req.leetcode_url
-    )
-    return ch_res
+    username = val_res["leetcode_username"]
 
+    # Retrieve or create student LeetCodeProfile record
+    stmt = select(LeetCodeProfile).where(LeetCodeProfile.candidate_id == student.id)
+    res = await db.execute(stmt)
+    lc_prof = res.scalar_one_or_none()
 
-@router.post("/leetcode/verify")
-async def verify_leetcode_ownership(
-    student: StudentProfile = Depends(get_current_student),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Step 2: Inspect public LeetCode profile bio for the challenge token.
-    If verified, updates database status to VERIFIED and fetches real metrics.
-    """
-    ver_res = await LeetCodeVerificationService.verify_ownership_challenge(db=db, candidate_id=student.id)
-    if ver_res.get("verified"):
-        # Auto-fetch live metrics upon successful verification
-        await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
-    return ver_res
+    if not lc_prof:
+        lc_prof = LeetCodeProfile(
+            candidate_id=student.id,
+            leetcode_username=username,
+            profile_url=val_res["normalized_url"],
+            account_exists=True,
+            verification_status="CONNECTED",
+            ownership_status="CONNECTED",
+            data_status="NOT_AVAILABLE"
+        )
+        db.add(lc_prof)
+        await db.commit()
+        await db.refresh(lc_prof)
+    else:
+        lc_prof.leetcode_username = username
+        lc_prof.profile_url = val_res["normalized_url"]
+        lc_prof.verification_status = "CONNECTED"
+        lc_prof.ownership_status = "CONNECTED"
+        await db.commit()
+
+    # Fetch cached or updated metrics enforcing 24-hour cache
+    m_res = await LeetCodeMetricsService.get_candidate_metrics(db, student.id)
+    if not m_res.get("metrics") or m_res.get("data_status") == "STALE":
+        m_res = await LeetCodeMetricsService.fetch_and_update_metrics(db, student.id)
+
+    problems_solved = None
+    if m_res.get("metrics"):
+        problems_solved = m_res["metrics"].get("total_problems_solved")
+
+    return {
+        "leetcode_username": username,
+        "problems_solved": problems_solved
+    }
 
 
 @router.get("/leetcode/metrics")
