@@ -179,23 +179,36 @@ class LeetCodeGraphQLProvider(LeetCodeDataProvider):
             )
 
         # Parse Difficulty Counts
-        submit_stats = matched.get("submitStats", {}).get("acSubmissionNum", [])
+        submit_stats = matched.get("submitStats", {}).get("acSubmissionNum")
+        if submit_stats is None or not isinstance(submit_stats, list):
+            return ProviderResult(
+                status=ProviderResultStatus.UNAVAILABLE,
+                message=f"LeetCode profile @{username} submitStats is missing or invalid.",
+                data=None,
+                timestamp=now_str
+            )
+
         total_solved = None
         easy_solved = None
         medium_solved = None
         hard_solved = None
+        found_all_difficulty = False
 
         for item in submit_stats:
             diff = item.get("difficulty")
             count = item.get("count")
             if diff == "All":
                 total_solved = count
+                found_all_difficulty = True
             elif diff == "Easy":
                 easy_solved = count
             elif diff == "Medium":
                 medium_solved = count
             elif diff == "Hard":
                 hard_solved = count
+
+        if not found_all_difficulty:
+            total_solved = None
 
         # Parse Badges
         badges_list = []
