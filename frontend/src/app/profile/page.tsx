@@ -1445,7 +1445,7 @@ export default function ProfilePage() {
                     value={leetcodeInput}
                     onChange={(e) => setLeetcodeInput(e.target.value)}
                     placeholder="e.g. https://leetcode.com/u/25CSEB52SANJAY/"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs focus:ring-2 focus:ring-[#002147] focus:border-[#002147] outline-none"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#002147] focus:border-[#002147] outline-none"
                   />
                 </div>
 
