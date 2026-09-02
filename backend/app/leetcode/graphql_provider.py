@@ -248,6 +248,3 @@ class LeetCodeGraphQLProvider(LeetCodeDataProvider):
             "message": "Connected to official LeetCode GraphQL public gateway.",
             "timestamp": datetime.utcnow().isoformat()
         }
-
-from app.leetcode.data_provider import LeetCodeProviderRegistry
-LeetCodeProviderRegistry.set_provider(LeetCodeGraphQLProvider())

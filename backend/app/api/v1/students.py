@@ -434,6 +434,11 @@ async def post_feedback(
 from app.schemas.student import LeetCodeChallengeRequest
 from app.leetcode.verification import LeetCodeVerificationService
 from app.leetcode.metrics_service import LeetCodeMetricsService
+from app.leetcode.graphql_provider import LeetCodeGraphQLProvider
+from app.leetcode.data_provider import LeetCodeProviderRegistry
+
+# Configure live LeetCode GraphQL provider for production execution
+LeetCodeProviderRegistry.set_provider(LeetCodeGraphQLProvider())
 
 @router.post("/leetcode/challenge")
 async def generate_leetcode_challenge(
