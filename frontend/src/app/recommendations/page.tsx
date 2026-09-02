@@ -22,7 +22,7 @@ const DEFAULT_RECOMMENDATIONS = [
       source: "PM Scheme",
       source_name: "Verified PM Scheme Posting",
       opportunity_type: "INTERNSHIP",
-      apply_url: "https://myportfolio.example.com",
+      apply_url: "https://myportfolio-pixel-pioneers3.vercel.app/",
       skills: [
         { skill: { name: "React" }, is_required: true },
         { skill: { name: "TypeScript" }, is_required: true },
