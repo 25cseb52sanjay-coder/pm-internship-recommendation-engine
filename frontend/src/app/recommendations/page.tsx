@@ -61,7 +61,7 @@ const DEFAULT_RECOMMENDATIONS = [
       source: "PM Scheme",
       source_name: "Verified PM Scheme Posting",
       opportunity_type: "INTERNSHIP",
-      apply_url: "https://jobify.example.com",
+      apply_url: "https://jobify-3h50bz98l-pixel-pioneers4.vercel.app/",
       skills: [
         { skill: { name: "Node.js" }, is_required: true },
         { skill: { name: "Data Structures" }, is_required: true },
