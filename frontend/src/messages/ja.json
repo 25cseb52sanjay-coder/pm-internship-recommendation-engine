@@ -12,7 +12,7 @@
     "logout": "Logout",
     "sign_in": "Sign In",
     "register": "Candidate Register",
-    "portal_title": "PRIME MINISTER'S INTERNSHIP SCHEME (PMIS)",
+    "portal_title": "MY PORTFOLIO.COM",
     "ai_match_portal": "AI Match Portal",
     "portal_subtitle": "Ministry of Corporate Affairs & NITI Aayog Initiative • AI Recommendation Engine",
     "gov_service": "Government Digital Service Portal",
@@ -22,11 +22,11 @@
   },
   "home": {
     "hero_title": "AI-Powered National Internship Recommendation Engine",
-    "hero_subtitle": "Connecting eligible youth across India with top corporate and public sector opportunities under the Prime Minister's Internship Scheme using eligibility-aware recommendation algorithms.",
+    "hero_subtitle": "Connecting eligible youth across India with top corporate and public sector opportunities under the my portfolio.com using eligibility-aware recommendation algorithms.",
     "apply_now": "Explore 24/7 Live Opportunities",
     "register_now": "Register as Candidate",
     "admin_login": "Scheme Admin Portal",
-    "scheme_highlights": "PM Internship Scheme Highlights",
+    "scheme_highlights": "my portfolio.com Highlights",
     "stipend_title": "₹5,000 / month Financial Support",
     "stipend_desc": "Government stipend support of ₹4,500/month plus company contribution of ₹500/month directly transferred to candidate bank accounts.",
     "top_companies_title": "500 Top Companies & PSUs",
@@ -113,7 +113,7 @@
     "password_label": "Password",
     "login_btn": "Sign In",
     "register_title": "Create Candidate Account",
-    "register_subtitle": "Join the Prime Minister's Internship Scheme AI Portal",
+    "register_subtitle": "Join the my portfolio.com AI Portal",
     "register_btn": "Complete Candidate Registration",
     "google_signin": "Sign in with Google",
     "or": "OR"
@@ -128,7 +128,7 @@
     "discovery_status": "Discovery Engine Status"
   },
   "footer": {
-    "scheme_name": "PRIME MINISTER'S INTERNSHIP SCHEME (PMIS)",
+    "scheme_name": "MY PORTFOLIO.COM",
     "scheme_desc": "Initiative by the Ministry of Corporate Affairs and NITI Aayog to empower youth with skill training in top 500 companies across India.",
     "navigation_title": "Portal Navigation",
     "policies_title": "Rules & Policies",
@@ -139,7 +139,7 @@
     "privacy_policy": "Data Privacy & Security Norms",
     "helpdesk_phone": "1800-11-2026 (Mon-Sat 9AM-6PM)",
     "helpdesk_email": "support-pmis@mca.gov.in",
-    "copyright": "© 2026 Prime Minister's Internship Scheme AI Recommendation Portal. All Rights Reserved."
+    "copyright": "© 2026 my portfolio.com AI Recommendation Portal. All Rights Reserved."
   },
   "common": {
     "apply": "Apply Now",

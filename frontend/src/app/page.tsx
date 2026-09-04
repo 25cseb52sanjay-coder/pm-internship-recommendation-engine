@@ -24,7 +24,7 @@ export default function LandingPage() {
   const handleCheckEligibility = (e: React.FormEvent) => {
     e.preventDefault();
     if (eligibilityCheck.age >= 21 && eligibilityCheck.age <= 24) {
-      setEligibilityResult("Eligible! You satisfy the PM Internship Scheme age & academic eligibility guidelines (21-24 years).");
+      setEligibilityResult("Eligible! You satisfy the my portfolio.com age & academic eligibility guidelines (21-24 years).");
     } else {
       setEligibilityResult("Note: Official PM Scheme standard age range is 21-24 years. You can still explore open opportunities!");
     }
@@ -32,8 +32,8 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      q: "What is the Prime Minister's Internship Scheme (PMIS)?",
-      a: "The PM Internship Scheme is a national youth empowerment initiative providing eligible candidates aged 21-24 with 12-month hands-on internships across top public & private sector companies in India with monthly financial assistance."
+      q: "What is the my portfolio.com (PMIS)?",
+      a: "The my portfolio.com is a national youth empowerment initiative providing eligible candidates aged 21-24 with 12-month hands-on internships across top public & private sector companies in India with monthly financial assistance."
     },
     {
       q: "How does the AI Recommendation Engine match candidates?",
@@ -60,7 +60,7 @@ export default function LandingPage() {
         </div>
         <div className="overflow-hidden flex-1 relative">
           <div className="animate-ticker text-slate-800 font-medium">
-            <span className="mr-8">📢 PM Internship Scheme Phase II Application Window Open • Apply for 1.25 Lakh Opportunities Across ISRO, BHEL, TATA Motors, SBI & Infosys.</span>
+            <span className="mr-8">📢 my portfolio.com Phase II Application Window Open • Apply for 1.25 Lakh Opportunities Across ISRO, BHEL, TATA Motors, SBI & Infosys.</span>
             <span className="mr-8">📌 AI Recommendation Engine Online • Upload Resume for Automatic Skill Intersection & Eligibility Scoring.</span>
             <span className="mr-8">💡 Helpdesk Toll Free Number: 1800-11-2026 for Candidate Assistance.</span>
           </div>

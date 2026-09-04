@@ -52,7 +52,7 @@ export default function RegisterPage() {
             <ShieldCheck className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-bold text-[#002147]">Candidate Registration</h2>
-          <p className="text-xs text-slate-600">Register under Prime Minister's Internship Scheme for AI compatibility matching</p>
+          <p className="text-xs text-slate-600">Register under my portfolio.com for AI compatibility matching</p>
         </div>
 
         {error && (

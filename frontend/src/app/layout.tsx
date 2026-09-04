@@ -5,8 +5,8 @@ import Footer from "@/components/Footer";
 import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
-  title: "PM Internship Scheme - AI Recommendation Engine",
-  description: "AI-Powered Internship Recommendation Platform for PM Internship Scheme (Smart India Hackathon)",
+  title: "my portfolio.com - AI Recommendation Engine",
+  description: "AI-Powered Internship Recommendation Platform for my portfolio.com (Smart India Hackathon)",
 };
 
 export default function RootLayout({

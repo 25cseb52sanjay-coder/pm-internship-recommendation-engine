@@ -157,7 +157,7 @@ export default function LoginPage() {
             <ShieldCheck className="w-6 h-6 text-blue-900" />
           </div>
           <h2 className="text-xl font-bold text-[#002147]">Candidate & Administrator Login</h2>
-          <p className="text-xs text-slate-600">Prime Minister's Internship Scheme Digital Portal</p>
+          <p className="text-xs text-slate-600">my portfolio.com Digital Portal</p>
         </div>
 
         {/* 1. Official Google Identity Services Button Container */}
