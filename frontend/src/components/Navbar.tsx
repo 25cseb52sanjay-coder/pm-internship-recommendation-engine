@@ -74,15 +74,12 @@ export default function Navbar() {
         {/* Emblem Placeholder & Scheme Name */}
         <Link href="/" className="flex items-center space-x-4 group">
           
-          {/* Official Emblem Placeholder Badge */}
-          <div className="w-12 h-12 rounded bg-slate-100 border border-slate-300 flex flex-col items-center justify-center p-1 shadow-sm group-hover:border-blue-700 transition-colors shrink-0">
-            <div className="w-6 h-6 rounded-full border-2 border-[#002147] flex items-center justify-center">
-              <div className="w-3 h-3 rounded-full bg-[#002147] flex items-center justify-center text-[7px] text-white font-black">
-                ★
-              </div>
-            </div>
-            <span className="text-[8px] font-bold text-slate-700 tracking-tighter uppercase mt-0.5">GOI DEMO</span>
-          </div>
+          {/* Header Logo */}
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="w-12 h-12 object-contain shrink-0"
+          />
 
           <div>
             <div className="flex items-center space-x-2">
