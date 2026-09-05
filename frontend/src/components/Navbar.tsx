@@ -33,16 +33,16 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Emblem Placeholder & Scheme Name */}
-        <Link href="/" className="flex items-center space-x-4 group">
+        <div className="flex items-center space-x-4">
           
-          {/* Header Logo */}
+          {/* Header Logo (Unclickable) */}
           <img
             src="/logo.png"
             alt="Logo"
-            className="w-12 h-12 object-contain shrink-0"
+            className="w-12 h-12 object-contain shrink-0 pointer-events-none select-none"
           />
 
-          <div>
+          <Link href="/" className="group">
             <div className="flex items-center space-x-2">
               <h1 className="text-lg sm:text-xl font-bold text-[#002147] tracking-tight leading-none">
                 {t("nav.portal_title")}
@@ -54,8 +54,8 @@ export default function Navbar() {
             <p className="text-xs text-slate-600 font-medium mt-1">
               {t("nav.portal_subtitle")}
             </p>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
       </div>
 
