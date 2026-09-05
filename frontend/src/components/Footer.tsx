@@ -32,7 +32,6 @@ export default function Footer() {
             <p className="text-xs text-slate-400 leading-relaxed">
               {t("footer.scheme_desc")}
             </p>
-            <p className="text-[11px] text-amber-400 font-semibold">Smart India Hackathon (SIH) 2026 Prototype</p>
           </div>
 
           {/* Col 2: Quick Links */}
