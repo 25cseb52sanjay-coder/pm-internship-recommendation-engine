@@ -7,6 +7,15 @@ import { LanguageProvider } from "@/context/LanguageContext";
 export const metadata: Metadata = {
   title: "my portfolio.com - AI Recommendation Engine",
   description: "AI-Powered Internship Recommendation Platform for my portfolio.com (Smart India Hackathon)",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
