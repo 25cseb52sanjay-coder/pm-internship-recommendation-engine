@@ -72,11 +72,6 @@ export default function LandingPage() {
         <div className="bg-gradient-to-br from-[#002147] via-[#003366] to-[#001529] rounded-2xl p-6 sm:p-12 text-white border border-slate-800 shadow-xl relative overflow-hidden">
           
           <div className="max-w-3xl space-y-6 relative z-10">
-            <span className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold bg-amber-400 text-slate-950 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart India Hackathon (SIH) 2026 Prototype Solution</span>
-            </span>
-
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
               {t("home.hero_title")}
             </h1>
